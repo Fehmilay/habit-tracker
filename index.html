@@ -113,10 +113,18 @@
   /* MODAL */
   .modal-overlay { position:fixed; inset:0; z-index:1000; background:rgba(0,0,0,.9); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; padding:20px; }
   .modal-overlay.hidden { display:none; }
-  .modal { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:28px; max-width:520px; width:100%; }
+  .modal { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:28px; max-width:560px; width:100%; max-height:90vh; overflow-y:auto; }
   .modal h2 { font-size:1.2rem; margin-bottom:6px; }
   .modal h2 span { color:var(--green); }
   .modal > p { font-size:.82rem; color:var(--text-dim); margin-bottom:18px; line-height:1.6; }
+  .modal-section-title { font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--text-dim); margin:20px 0 10px; border-top:1px solid var(--border); padding-top:16px; }
+  .theme-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:9px; margin-bottom:6px; }
+  .theme-swatch { border-radius:10px; padding:12px 10px; cursor:pointer; border:2px solid transparent; transition:all .2s; text-align:center; }
+  .theme-swatch:hover { transform:scale(1.04); }
+  .theme-swatch.active { border-color:var(--green); box-shadow:0 0 12px var(--green-mid); }
+  .swatch-preview { display:flex; gap:4px; justify-content:center; margin-bottom:7px; }
+  .swatch-dot { width:14px; height:14px; border-radius:50%; }
+  .swatch-name { font-size:.74rem; font-weight:600; }
   .modal input[type=text], .modal input[type=password] {
     width:100%; padding:12px 14px; background:var(--surface2); border:1px solid var(--border);
     border-radius:var(--radius); color:var(--text); font-size:.85rem; outline:none;
@@ -166,6 +174,7 @@
     </div>
     <span class="sync-dot" id="syncDot" title="Sync-Status"></span>
     <span class="sync-label" id="syncLabel">–</span>
+    <button class="btn btn-ghost" style="padding:6px 10px;font-size:.8rem;" onclick="manualRefresh()" title="Jetzt synchronisieren">🔄</button>
     <button class="btn btn-ghost" style="padding:6px 10px;font-size:.8rem;" onclick="openSetup()">⚙️</button>
   </div>
 </nav>
@@ -234,6 +243,10 @@
       <button class="btn btn-green" onclick="connectSync()">🔗 Sync aktivieren</button>
       <button class="btn btn-ghost" onclick="useLocalOnly()">📱 Nur lokal nutzen</button>
     </div>
+
+    <!-- THEME PICKER -->
+    <div class="modal-section-title">🎨 Design / Theme</div>
+    <div class="theme-grid" id="themeGrid"></div>
   </div>
 </div>
 
@@ -241,6 +254,49 @@
 <div class="toast" id="toast"></div>
 
 <script>
+// ══════════════════════════════════════════════════════
+//  THEMES
+// ══════════════════════════════════════════════════════
+const THEMES = [
+  { id:'dark',    name:'Dark',        bg:'#0a0a0a', surface:'#141414', surface2:'#1c1c1c', border:'#2a2a2a', green:'#00e676', greenDim:'#00e67622', greenMid:'#00e67644', text:'#e0e0e0', textDim:'#888' },
+  { id:'oled',    name:'OLED Black',  bg:'#000000', surface:'#080808', surface2:'#101010', border:'#1e1e1e', green:'#00e676', greenDim:'#00e67622', greenMid:'#00e67644', text:'#ffffff', textDim:'#666' },
+  { id:'light',   name:'Hell',        bg:'#f2f4f7', surface:'#ffffff', surface2:'#e8ecf2', border:'#d4d9e2', green:'#00a152', greenDim:'#00a15218', greenMid:'#00a15230', text:'#1a1a2e', textDim:'#6b7280' },
+  { id:'purple',  name:'Purple Night',bg:'#0d0b14', surface:'#16122a', surface2:'#1e1840', border:'#2d2350', green:'#bb86fc', greenDim:'#bb86fc22', greenMid:'#bb86fc44', text:'#e8e0f5', textDim:'#7c7090' },
+  { id:'ocean',   name:'Ocean',       bg:'#020e1a', surface:'#061728', surface2:'#0a2038', border:'#0e2e50', green:'#40c4ff', greenDim:'#40c4ff20', greenMid:'#40c4ff40', text:'#d0eaff', textDim:'#5a8aaa' },
+  { id:'sunset',  name:'Sunset',      bg:'#130800', surface:'#1e1008', surface2:'#2a1a0a', border:'#3d2510', green:'#ff9800', greenDim:'#ff980022', greenMid:'#ff980044', text:'#ffe8d0', textDim:'#a06030' },
+];
+
+function applyTheme(id) {
+  const t = THEMES.find(x => x.id === id) || THEMES[0];
+  const r = document.documentElement.style;
+  r.setProperty('--bg',        t.bg);
+  r.setProperty('--surface',   t.surface);
+  r.setProperty('--surface2',  t.surface2);
+  r.setProperty('--border',    t.border);
+  r.setProperty('--green',     t.green);
+  r.setProperty('--green-dim', t.greenDim);
+  r.setProperty('--green-mid', t.greenMid);
+  r.setProperty('--text',      t.text);
+  r.setProperty('--text-dim',  t.textDim);
+  localStorage.setItem('ht_theme', id);
+  renderThemeGrid(id);
+}
+
+function renderThemeGrid(activeId) {
+  const grid = document.getElementById('themeGrid');
+  if (!grid) return;
+  grid.innerHTML = THEMES.map(t => `
+    <div class="theme-swatch ${t.id===activeId?'active':''}" onclick="applyTheme('${t.id}')"
+         style="background:${t.surface};border-color:${t.id===activeId?t.green:'transparent'}">
+      <div class="swatch-preview">
+        <div class="swatch-dot" style="background:${t.bg}"></div>
+        <div class="swatch-dot" style="background:${t.surface2}"></div>
+        <div class="swatch-dot" style="background:${t.green}"></div>
+      </div>
+      <div class="swatch-name" style="color:${t.text}">${t.name}</div>
+    </div>`).join('');
+}
+
 // ══════════════════════════════════════════════════════
 //  CONSTANTS & STATE
 // ══════════════════════════════════════════════════════
@@ -267,6 +323,8 @@ let saveTimer = null;
   apiKey    = localStorage.getItem('jb_apikey') || '';
   binId     = localStorage.getItem('jb_binid')  || '';
   localOnly = localStorage.getItem('local_only') === '1';
+
+  applyTheme(localStorage.getItem('ht_theme') || 'dark');
 
   if (localOnly) {
     _loadLocal();
@@ -347,6 +405,34 @@ function scheduleSave() {
   saveTimer = setTimeout(saveToCloud, 800);
 }
 
+// Pull latest data from cloud (called by polling & manual refresh)
+async function pullFromCloud() {
+  if (localOnly || !apiKey || !binId) return;
+  if (saveTimer) return; // don't overwrite pending local changes
+  try {
+    const res  = await fetch(`${BIN_URL}/${binId}/latest`, { headers: { 'X-Master-Key': apiKey } });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || res.status);
+    habits    = data.record.habits    || habits;
+    allChecks = data.record.allChecks || {};
+    _saveLocal();
+    render();
+    setSyncStatus('ok', 'Synced ✓');
+  } catch(e) {
+    setSyncStatus('err', 'Offline');
+  }
+}
+
+async function manualRefresh() {
+  if (localOnly || !apiKey || !binId) { showToast('Kein Cloud-Sync aktiv'); return; }
+  setSyncStatus('busy', 'Lade...');
+  await pullFromCloud();
+  showToast('🔄 Daten aktualisiert');
+}
+
+// Auto-poll every 20 seconds for changes from other devices
+setInterval(pullFromCloud, 20000);
+
 // ══════════════════════════════════════════════════════
 //  LOCAL STORAGE FALLBACK
 // ══════════════════════════════════════════════════════
@@ -372,6 +458,7 @@ function seedDefaults() {
 function openSetup() {
   document.getElementById('apiKeyInput').value = apiKey || '';
   document.getElementById('binIdInput').value  = binId  || '';
+  renderThemeGrid(localStorage.getItem('ht_theme') || 'dark');
   document.getElementById('setupModal').classList.remove('hidden');
 }
 
