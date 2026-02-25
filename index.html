@@ -78,6 +78,27 @@
   .habit-del{opacity:0;width:0;overflow:hidden;transition:all .2s;color:var(--red);font-weight:700;cursor:pointer;font-size:.9rem}
   .habit-row:hover .habit-del,.habit-row:focus-within .habit-del{opacity:1;width:20px;margin-left:4px}
 
+  /* ─── JOURNAL ─── */
+  .journal-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:16px}
+  .journal-title{font-size:.85rem;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+  .journal-title .jt-badge{font-size:.6rem;background:var(--accent-dim);color:var(--accent);padding:2px 8px;border-radius:20px;font-weight:700}
+  .journal-prompts{display:flex;flex-direction:column;gap:10px}
+  .journal-prompt{display:flex;flex-direction:column;gap:4px}
+  .jp-label{font-size:.72rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:5px}
+  .jp-input{width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:.84rem;outline:none;transition:var(--tr);resize:none;font-family:inherit;line-height:1.4;min-height:38px;max-height:120px;overflow-y:auto}
+  .jp-input:focus{border-color:var(--accent)}
+  .jp-input::placeholder{color:var(--text-dim);font-style:italic}
+  .jp-saved{font-size:.6rem;color:var(--accent);margin-left:auto;opacity:0;transition:opacity .3s}
+  .jp-saved.show{opacity:1}
+  .journal-history{margin-top:12px;border-top:1px solid var(--border);padding-top:10px}
+  .jh-toggle{background:none;border:none;color:var(--text-dim);font-size:.72rem;cursor:pointer;padding:0;font-weight:600}
+  .jh-toggle:hover{color:var(--accent)}
+  .jh-entries{margin-top:8px;display:flex;flex-direction:column;gap:8px}
+  .jh-entry{background:var(--surface2);border-radius:8px;padding:10px 12px}
+  .jh-date{font-size:.65rem;color:var(--accent);font-weight:700;margin-bottom:4px}
+  .jh-text{font-size:.76rem;color:var(--text-dim);line-height:1.4}
+  .jh-text strong{color:var(--text);font-weight:600}
+
   .add-bar{display:flex;gap:8px;margin-bottom:16px}
   .add-bar input{flex:1;padding:12px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:.88rem;outline:none;transition:var(--tr)}
   .add-bar input:focus{border-color:var(--accent)}
@@ -207,6 +228,7 @@
   </div>
   <div class="topbar-right">
     <span class="sync-dot" id="syncDot" title="Sync"></span>
+    <span style="font-size:.6rem;color:var(--text-dim);min-width:30px" id="syncLbl">–</span>
     <button class="topbar-btn" onclick="manualRefresh()" title="Sync">🔄</button>
     <button class="topbar-btn" onclick="openSetup()">⚙️</button>
   </div>
@@ -246,6 +268,29 @@
   <div class="add-bar">
     <input type="text" id="newHabit" placeholder="+ Neuen Habit hinzufügen..." maxlength="40" onkeydown="if(event.key==='Enter')addHabit()">
     <button class="btn btn-accent" onclick="addHabit()">+</button>
+  </div>
+
+  <!-- Daily Journal -->
+  <div class="journal-section">
+    <div class="journal-title">📝 Tages-Journal <span class="jt-badge" id="jBadge">Heute</span></div>
+    <div class="journal-prompts">
+      <div class="journal-prompt">
+        <div class="jp-label">🏆 Win des Tages <span class="jp-saved" id="jSave1">✓ gespeichert</span></div>
+        <textarea class="jp-input" id="jWin" rows="1" placeholder="Was lief heute gut? Was hast du geschafft?" oninput="autoGrow(this);saveJournal()"></textarea>
+      </div>
+      <div class="journal-prompt">
+        <div class="jp-label">🙏 Dankbarkeit <span class="jp-saved" id="jSave2">✓ gespeichert</span></div>
+        <textarea class="jp-input" id="jGrateful" rows="1" placeholder="Wofür bist du heute dankbar?" oninput="autoGrow(this);saveJournal()"></textarea>
+      </div>
+      <div class="journal-prompt">
+        <div class="jp-label">🎯 Fokus für morgen <span class="jp-saved" id="jSave3">✓ gespeichert</span></div>
+        <textarea class="jp-input" id="jFocus" rows="1" placeholder="Was ist morgen am wichtigsten?" oninput="autoGrow(this);saveJournal()"></textarea>
+      </div>
+    </div>
+    <div class="journal-history">
+      <button class="jh-toggle" onclick="toggleJHistory()" id="jhToggle">📖 Letzte Einträge anzeigen</button>
+      <div class="jh-entries" id="jhEntries" style="display:none"></div>
+    </div>
   </div>
 </div>
 
@@ -391,8 +436,8 @@ const DAYS_SHORT=['So','Mo','Di','Mi','Do','Fr','Sa'];
 const BIN_URL='https://api.jsonbin.io/v3/b';
 
 let currentYear,currentMonth;
-let habits=[],allChecks={};
-let apiKey='',binId='',localOnly=false,saveTimer=null;
+let habits=[],allChecks={},allJournal={};
+let apiKey='',binId='',localOnly=false,saveTimer=null,journalTimer=null;
 
 // ══════════════════════════════════════════
 //  INIT
@@ -435,10 +480,10 @@ async function loadCloud(){
     if(binId){
       const r=await fetch(`${BIN_URL}/${binId}/latest`,{headers:{'X-Master-Key':apiKey}});
       const d=await r.json();if(!r.ok)throw new Error(d.message||r.status);
-      habits=d.record.habits||[];allChecks=d.record.allChecks||{};
+      habits=d.record.habits||[];allChecks=d.record.allChecks||{};allJournal=d.record.allJournal||{};
     }else{
       if(habits.length===0)seedDef();
-      const r=await fetch(BIN_URL,{method:'POST',headers:{'Content-Type':'application/json','X-Master-Key':apiKey,'X-Bin-Name':'grind-tracker'},body:JSON.stringify({habits,allChecks})});
+      const r=await fetch(BIN_URL,{method:'POST',headers:{'Content-Type':'application/json','X-Master-Key':apiKey,'X-Bin-Name':'grind-tracker'},body:JSON.stringify({habits,allChecks,allJournal})});
       const d=await r.json();if(!r.ok)throw new Error(d.message||r.status);
       binId=d.metadata.id;localStorage.setItem('jb_binid',binId);
       toast('✅ Bin erstellt: '+binId);
@@ -451,10 +496,10 @@ async function saveCloud(){
   if(localOnly||!apiKey||!binId){_saveLocal();return;}
   syncSt('busy','...');
   try{
-    const r=await fetch(`${BIN_URL}/${binId}`,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':apiKey},body:JSON.stringify({habits,allChecks})});
+    const r=await fetch(`${BIN_URL}/${binId}`,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':apiKey},body:JSON.stringify({habits,allChecks,allJournal})});
     const d=await r.json();if(!r.ok)throw new Error(d.message||r.status);
     syncSt('ok','Synced ✓');_saveLocal();
-  }catch(e){syncSt('err','Fehler');_saveLocal();}
+  }catch(e){syncSt('err','Fehler');toast('⚠️ Sync-Fehler: '+e.message);_saveLocal();}
 }
 function scheduleSave(){clearTimeout(saveTimer);saveTimer=setTimeout(async()=>{saveTimer=null;await saveCloud();},800);}
 async function pullCloud(){
@@ -462,17 +507,21 @@ async function pullCloud(){
   try{
     const r=await fetch(`${BIN_URL}/${binId}/latest`,{headers:{'X-Master-Key':apiKey}});
     const d=await r.json();if(!r.ok)return;
-    habits=d.record.habits||habits;allChecks=d.record.allChecks||{};
+    habits=d.record.habits||habits;allChecks=d.record.allChecks||{};allJournal=d.record.allJournal||{};
     _saveLocal();renderAll();syncSt('ok','Synced ✓');
   }catch(e){syncSt('err','Offline');}
 }
 async function manualRefresh(){if(localOnly||!apiKey||!binId){toast('Kein Sync aktiv');return;}syncSt('busy','...');await pullCloud();toast('🔄 Aktualisiert');}
 setInterval(pullCloud,20000);
 
-function _saveLocal(){localStorage.setItem('ht_data',JSON.stringify({habits,allChecks}));}
-function _loadLocal(){try{const d=JSON.parse(localStorage.getItem('ht_data')||'{}');habits=d.habits||[];allChecks=d.allChecks||{};}catch(e){}}
+function _saveLocal(){localStorage.setItem('ht_data',JSON.stringify({habits,allChecks,allJournal}));}
+function _loadLocal(){try{const d=JSON.parse(localStorage.getItem('ht_data')||'{}');habits=d.habits||[];allChecks=d.allChecks||{};allJournal=d.allJournal||{};}catch(e){}}
 function seedDef(){habits=['Daily Beten','Gym / Sport','-1000 kcal Defizit','Uni / Arbeit','Bewerbung'].map(n=>({name:n,id:uid()}));allChecks={};}
-function syncSt(s,l){document.getElementById('syncDot').className='sync-dot '+s;}
+function syncSt(s,l){
+  document.getElementById('syncDot').className='sync-dot '+s;
+  const lbl=document.getElementById('syncLbl');
+  if(lbl)lbl.textContent=s==='ok'?'Synced':s==='busy'?'...':s==='err'?(localOnly?'Lokal':'Fehler'):'–';
+}
 
 // ══════════════════════════════════════════
 //  SETUP MODAL
@@ -493,6 +542,7 @@ async function connectSync(){
   if(binId)localStorage.setItem('jb_binid',binId);
   localStorage.removeItem('local_only');localOnly=false;
   closeSetup();syncSt('busy','...');await loadCloud();renderAll();
+  if(binId)toast('✅ Verbunden! Bin-ID: '+binId.slice(0,8)+'...');
 }
 function useLocal(){localOnly=true;localStorage.setItem('local_only','1');closeSetup();syncSt('err','Lokal');_loadLocal();renderAll();}
 
@@ -597,7 +647,7 @@ function weekStrongDays(){
 // ══════════════════════════════════════════
 //  RENDER ALL
 // ══════════════════════════════════════════
-function renderAll(){renderToday();renderCal();renderInsights();}
+function renderAll(){renderToday();renderCal();renderInsights();loadJournal();}
 
 // ── TODAY PAGE ──
 function renderToday(){
@@ -802,6 +852,61 @@ function go(page,el){
 }
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
 function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+
+// ══════════════════════════════════════════
+//  JOURNAL
+// ══════════════════════════════════════════
+function jKey(){const t=today();return `${t.y}-${t.m}-${t.d}`;}
+
+function saveJournal(){
+  const key=jKey();
+  const win=document.getElementById('jWin').value.trim();
+  const grateful=document.getElementById('jGrateful').value.trim();
+  const focus=document.getElementById('jFocus').value.trim();
+  if(!win&&!grateful&&!focus){delete allJournal[key];}else{allJournal[key]={win,grateful,focus};}
+  // Flash saved indicator
+  document.querySelectorAll('.jp-saved').forEach(el=>{el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1500);});
+  _saveLocal();
+  clearTimeout(journalTimer);
+  journalTimer=setTimeout(async()=>{journalTimer=null;await saveCloud();},1500);
+}
+
+function loadJournal(){
+  const j=allJournal[jKey()]||{};
+  const w=document.getElementById('jWin'),g=document.getElementById('jGrateful'),f=document.getElementById('jFocus');
+  if(w){w.value=j.win||'';autoGrow(w);}
+  if(g){g.value=j.grateful||'';autoGrow(g);}
+  if(f){f.value=j.focus||'';autoGrow(f);}
+}
+
+function autoGrow(el){
+  el.style.height='auto';
+  el.style.height=Math.min(el.scrollHeight,120)+'px';
+}
+
+function toggleJHistory(){
+  const box=document.getElementById('jhEntries');
+  const vis=box.style.display!=='none';
+  box.style.display=vis?'none':'block';
+  document.getElementById('jhToggle').textContent=vis?'📖 Letzte Einträge anzeigen':'📖 Verbergen';
+  if(!vis)renderJHistory();
+}
+
+function renderJHistory(){
+  const keys=Object.keys(allJournal).sort().reverse().slice(0,7);
+  if(!keys.length){document.getElementById('jhEntries').innerHTML='<div style="font-size:.76rem;color:var(--text-dim)">Noch keine Einträge.</div>';return;}
+  let h='';
+  keys.forEach(k=>{
+    const j=allJournal[k],parts=k.split('-');
+    const dateStr=`${parts[2]}. ${MN[parseInt(parts[1])]} ${parts[0]}`;
+    let content='';
+    if(j.win)content+=`<strong>🏆 Win:</strong> ${esc(j.win)}<br>`;
+    if(j.grateful)content+=`<strong>🙏 Dankbar:</strong> ${esc(j.grateful)}<br>`;
+    if(j.focus)content+=`<strong>🎯 Fokus:</strong> ${esc(j.focus)}`;
+    h+=`<div class="jh-entry"><div class="jh-date">${dateStr}</div><div class="jh-text">${content}</div></div>`;
+  });
+  document.getElementById('jhEntries').innerHTML=h;
+}
 </script>
 </body>
 </html>
