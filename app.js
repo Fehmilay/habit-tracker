@@ -20,13 +20,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   processDateLogic();
   renderCurrentView();
   setupSwipe();
-  // Occasional blink loop
-  setInterval(() => {
-    const el = document.getElementById('buddyContainer');
-    if (!el) return;
-    el.classList.add('do-blink');
-    setTimeout(() => el.classList.remove('do-blink'), 160);
-  }, 4800 + Math.random() * 2400);
 });
 
 // ===========================
@@ -271,6 +264,25 @@ function saveJournalEntry(dateKey, questionId, value) {
 //  BUDDY CUSTOMIZATION
 // ===========================
 function saveBuddyOption(key, value) {
+  const allowed = {
+    hairStyle: ['short','messy','curly','cap'],
+    eyebrowStyle: ['normal','thick','thin'],
+    skinTone: ['light','medium','tan','brown','dark'],
+    outfitStyle: ['casual','sport','business'],
+    signatureItem: ['none','glasses','watch','headphones','chain']
+  };
+
+  if (key === 'beard') {
+    state.buddy[key] = !!value;
+    save();
+    renderCurrentView();
+    return;
+  }
+
+  if (allowed[key] && !allowed[key].includes(value)) {
+    return;
+  }
+
   state.buddy[key] = value;
   save();
   renderCurrentView();
@@ -577,7 +589,7 @@ function renderSettingsView(container) {
 
         <div class="cust-grid">
           ${custSelect('Frisur','hairStyle',b.hairStyle,[
-            {v:'short',l:'Kurz'},{v:'curly',l:'Lockig'},{v:'long',l:'Lang'},{v:'buzz',l:'Buzz'},{v:'wavy',l:'Wellig'},{v:'braids',l:'Braids'}
+            {v:'short',l:'Kurz'},{v:'messy',l:'Messy'},{v:'curly',l:'Lockig'},{v:'cap',l:'Cap'}
           ])}
           ${custSelect('Augenbrauen','eyebrowStyle',b.eyebrowStyle,[
             {v:'normal',l:'Normal'},{v:'thick',l:'Dick'},{v:'thin',l:'Dünn'}
@@ -590,7 +602,7 @@ function renderSettingsView(container) {
             {v:'casual',l:'Casual'},{v:'sport',l:'Sport'},{v:'business',l:'Business'}
           ])}
           ${custSelect('Accessoire','signatureItem',b.signatureItem,[
-            {v:'none',l:'Keins'},{v:'glasses',l:'Brille'},{v:'cap',l:'Cap'},{v:'watch',l:'Uhr'},{v:'headphones',l:'Kopfhörer'},{v:'chain',l:'Kette'}
+            {v:'none',l:'Keins'},{v:'glasses',l:'Brille'},{v:'watch',l:'Uhr'},{v:'headphones',l:'Kopfhörer'},{v:'chain',l:'Kette'}
           ])}
         </div>
       </div>
@@ -627,8 +639,13 @@ function renderSettingsView(container) {
   // Render preview
   const prev = document.getElementById('buddyPreview');
   if (prev) {
-    const dummyDone = { body:true, personal:true, spiritual:true };
-    renderBuddy(prev, state.areas, state.buddy, dummyDone);
+    const dummyDone = { body:false, personal:false, spiritual:false };
+    const neutralAreas = {
+      body: { value: 80, daysMissed: 0, status: 'OK' },
+      personal: { value: 80, daysMissed: 0, status: 'OK' },
+      spiritual: { value: 80, daysMissed: 0, status: 'OK' }
+    };
+    renderBuddy(prev, neutralAreas, state.buddy, dummyDone);
   }
 }
 

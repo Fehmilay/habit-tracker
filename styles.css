@@ -502,3 +502,140 @@ code{background:var(--surface);padding:2px 6px;border-radius:4px;font-size:.85em
 .react-personal  .aura-react-personal { display:block !important; }
 .react-spiritual .aura-peaceful       { display:block !important; }
 
+/* ============================================================
+   STICKMAN AVATAR (stable override)
+   ============================================================ */
+.stickman-svg .shadow{fill:rgba(0,0,0,.18);}
+.stickman-svg .head{fill:#e8a96a;stroke:#111827;stroke-width:2.4;}
+.stickman-svg .stickman-hair,
+.stickman-svg .eyes,
+.stickman-svg .mouth,
+.stickman-svg .torso,
+.stickman-svg .arms,
+.stickman-svg .legs,
+.stickman-svg .shoes,
+.stickman-svg .item,
+.stickman-svg .beard,
+.stickman-svg .fx{
+  fill:none;stroke:#111827;stroke-linecap:round;stroke-linejoin:round;stroke-width:4;
+}
+.stickman-svg .eyes,.stickman-svg .mouth{stroke-width:3;}
+.stickman-svg .fx{stroke-width:2;opacity:.9;}
+
+/* skin tones */
+.skin-light .stickman-svg .head{fill:#fddbb4;}
+.skin-medium .stickman-svg .head{fill:#e8a96a;}
+.skin-tan .stickman-svg .head{fill:#c9884a;}
+.skin-brown .stickman-svg .head{fill:#8b5e3c;}
+.skin-dark .stickman-svg .head{fill:#5c3320;}
+
+/* hide variants by default */
+.stickman-svg .hair-messy,.stickman-svg .hair-curly,.stickman-svg .hair-cap,
+.stickman-svg .outfit-sport,.stickman-svg .outfit-business,
+.stickman-svg .arms-fit,.stickman-svg .arms-prayer,.stickman-svg .arms-laptop,.stickman-svg .arms-phone,.stickman-svg .arms-pocket,
+.stickman-svg .eyes-happy,.stickman-svg .eyes-tired,.stickman-svg .eyes-stressed,.stickman-svg .eyes-blink,
+.stickman-svg .mouth-smile,.stickman-svg .mouth-sad,.stickman-svg .mouth-tight,
+.stickman-svg .glasses,.stickman-svg .headphones,.stickman-svg .chain,.stickman-svg .watch,
+.stickman-svg .beard,
+.stickman-svg .fx{display:none;}
+
+/* selected customization */
+.hair-short .stickman-svg .hair-short{display:block;}
+.hair-messy .stickman-svg .hair-short{display:none;}
+.hair-messy .stickman-svg .hair-messy{display:block;}
+.hair-curly .stickman-svg .hair-short{display:none;}
+.hair-curly .stickman-svg .hair-curly{display:block;}
+.hair-cap .stickman-svg .hair-short{display:none;}
+.hair-cap .stickman-svg .hair-cap{display:block;}
+
+.outfit-casual .stickman-svg .outfit-casual{display:block;}
+.outfit-sport .stickman-svg .outfit-casual{display:none;}
+.outfit-sport .stickman-svg .outfit-sport{display:block;stroke:#22c55e;}
+.outfit-business .stickman-svg .outfit-casual{display:none;}
+.outfit-business .stickman-svg .outfit-business{display:block;stroke:#60a5fa;}
+
+.item-glasses .stickman-svg .glasses{display:block;stroke-width:2.2;}
+.item-headphones .stickman-svg .headphones{display:block;stroke-width:2.5;}
+.item-chain .stickman-svg .chain{display:block;stroke:#fbbf24;stroke-width:2.6;}
+.item-watch .stickman-svg .watch{display:block;stroke:#22c55e;stroke-width:2.2;}
+.beard-on .stickman-svg .beard{display:block;stroke-width:2.6;}
+
+/* state overlays */
+.state-neutral .stickman-svg .arms-default{display:block;}
+.state-neutral .stickman-svg .eyes-default{display:block;}
+.state-neutral .stickman-svg .mouth-neutral{display:block;}
+
+.state-body-fit .stickman-svg .arms-default{display:none;}
+.state-body-fit .stickman-svg .arms-fit{display:block;}
+.state-body-fit .stickman-svg .eyes-default{display:none;}
+.state-body-fit .stickman-svg .eyes-happy{display:block;}
+.state-body-fit .stickman-svg .mouth-neutral{display:none;}
+.state-body-fit .stickman-svg .mouth-smile{display:block;}
+.state-body-fit .stickman-svg .fx-body{display:block;stroke:#22c55e;}
+
+.state-body-soft .stickman-svg .arms-default{display:block;}
+.state-body-soft .stickman-svg .eyes-default{display:none;}
+.state-body-soft .stickman-svg .eyes-tired{display:block;}
+
+.state-body-neglected .stickman-svg .arms-default{display:none;}
+.state-body-neglected .stickman-svg .arms-pocket{display:block;}
+.state-body-neglected .stickman-svg .eyes-default{display:none;}
+.state-body-neglected .stickman-svg .eyes-tired{display:block;}
+.state-body-neglected .stickman-svg .mouth-neutral{display:none;}
+.state-body-neglected .stickman-svg .mouth-sad{display:block;}
+
+.state-spiritual-peaceful .stickman-svg .arms-default{display:none;}
+.state-spiritual-peaceful .stickman-svg .arms-prayer{display:block;}
+.state-spiritual-peaceful .stickman-svg .eyes-default{display:none;}
+.state-spiritual-peaceful .stickman-svg .eyes-happy{display:block;}
+.state-spiritual-peaceful .stickman-svg .mouth-neutral{display:none;}
+.state-spiritual-peaceful .stickman-svg .mouth-smile{display:block;}
+.state-spiritual-peaceful .stickman-svg .fx-spiritual{display:block;stroke:#fbbf24;}
+
+.state-spiritual-sad .stickman-svg .mouth-neutral{display:none;}
+.state-spiritual-sad .stickman-svg .mouth-sad{display:block;}
+
+.state-spiritual-stressed .stickman-svg .eyes-default{display:none;}
+.state-spiritual-stressed .stickman-svg .eyes-stressed{display:block;}
+.state-spiritual-stressed .stickman-svg .mouth-neutral{display:none;}
+.state-spiritual-stressed .stickman-svg .mouth-tight{display:block;}
+.state-spiritual-stressed .stickman-svg .fx-stress{display:block;stroke:#6b7280;}
+
+.state-personal-focused .stickman-svg .arms-default{display:none;}
+.state-personal-focused .stickman-svg .arms-laptop{display:block;}
+.state-personal-focused .stickman-svg .eyes-default{display:none;}
+.state-personal-focused .stickman-svg .eyes-happy{display:block;}
+.state-personal-focused .stickman-svg .mouth-neutral{display:none;}
+.state-personal-focused .stickman-svg .mouth-smile{display:block;}
+.state-personal-focused .stickman-svg .fx-personal{display:block;stroke:#60a5fa;}
+
+.state-personal-foggy .stickman-svg .eyes-default{display:none;}
+.state-personal-foggy .stickman-svg .eyes-tired{display:block;}
+
+.state-personal-avoiding .stickman-svg .arms-default{display:none;}
+.state-personal-avoiding .stickman-svg .arms-phone{display:block;}
+.state-personal-avoiding .stickman-svg .eyes-default{display:none;}
+.state-personal-avoiding .stickman-svg .eyes-tired{display:block;}
+.state-personal-avoiding .stickman-svg .mouth-neutral{display:none;}
+.state-personal-avoiding .stickman-svg .mouth-sad{display:block;}
+.state-personal-avoiding .stickman-svg .fx-stress{display:block;stroke:#6b7280;}
+
+/* blink */
+.do-blink .stickman-svg .eyes-default,
+.do-blink .stickman-svg .eyes-happy,
+.do-blink .stickman-svg .eyes-tired,
+.do-blink .stickman-svg .eyes-stressed{display:none !important;}
+.do-blink .stickman-svg .eyes-blink{display:block !important;}
+
+/* idle motion */
+.stickman-svg .buddy-breathe{transform-origin:110px 170px;animation:stickBreathe 3.8s ease-in-out infinite;}
+.stickman-svg .buddy-bounce{transform-origin:110px 180px;animation:stickFloat 3.6s ease-in-out infinite;}
+@keyframes stickBreathe{0%,100%{transform:scale(1);}50%{transform:scale(1.018,.992);}}
+@keyframes stickFloat{0%,100%{transform:translateY(0);}50%{transform:translateY(-3px);}}
+
+/* reactions */
+.react-body .stickman-svg{animation:reactPulse .6s ease;filter:drop-shadow(0 0 8px rgba(34,197,94,.4));}
+.react-personal .stickman-svg{animation:reactPulse .6s ease;filter:drop-shadow(0 0 8px rgba(96,165,250,.4));}
+.react-spiritual .stickman-svg{animation:reactPulse .6s ease;filter:drop-shadow(0 0 8px rgba(251,191,36,.45));}
+@keyframes reactPulse{0%{transform:scale(1);}40%{transform:scale(1.04);}100%{transform:scale(1);}}
+
