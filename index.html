@@ -1,60 +1,64 @@
 ﻿<!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
-  <meta name="theme-color" content="#0a0a0a"/>
-  <meta name="apple-mobile-web-app-capable" content="yes"/>
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-  <meta name="apple-mobile-web-app-title" content="Habit Tracker"/>
-  <meta name="description" content="Habit Tracker mit Chibi-Buddy Avatar"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0a0a0a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Habit Tracker</title>
-  <link rel="manifest" href="manifest.json"/>
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png"/>
-  <link rel="apple-touch-icon" href="icons/icon-192.png"/>
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap"/>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="styles.css"/>
-  <script src="config.js"></script>
-  <script src="storage.js"></script>
-  <script src="avatar.js"></script>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <main id="app">
-    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:80vh;gap:12px;">
-      <div style="width:36px;height:36px;border:3px solid #22c55e;border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite;"></div>
-      <p style="color:#9ca3af;font-size:.85rem;">Laden...</p>
-    </div>
-    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+
+  <!-- ========== HEADER ========== -->
+  <header class="app-header">
+    <h1>Habit Tracker</h1>
+    <div id="avatar-container"></div>
+  </header>
+
+  <!-- ========== TAB: HEUTE ========== -->
+  <main>
+    <section id="tab-today" class="tab-section">
+      <div id="today-content"></div>
+    </section>
+
+    <!-- ========== TAB: INSIGHTS ========== -->
+    <section id="tab-insights" class="tab-section hidden">
+      <div id="insights-content"></div>
+    </section>
+
+    <!-- ========== TAB: EINSTELLUNGEN ========== -->
+    <section id="tab-settings" class="tab-section hidden">
+      <div id="settings-content"></div>
+    </section>
   </main>
 
+  <!-- ========== BOTTOM NAV ========== -->
   <nav class="bottom-nav">
-    <button class="nav-btn active" data-view="today" onclick="navigate('today')">
-      <span class="nav-icon">🏠</span><span>Today</span>
+    <button class="nav-btn active" data-tab="today">
+      <span class="nav-icon">📅</span>
+      <span class="nav-label">Heute</span>
     </button>
-    <button class="nav-btn" data-view="month" onclick="navigate('month')">
-      <span class="nav-icon">📅</span><span>Monat</span>
+    <button class="nav-btn" data-tab="insights">
+      <span class="nav-icon">📊</span>
+      <span class="nav-label">Insights</span>
     </button>
-    <button class="nav-btn" data-view="insights" onclick="navigate('insights')">
-      <span class="nav-icon">📊</span><span>Insights</span>
-    </button>
-    <button class="nav-btn" data-view="settings" onclick="navigate('settings')">
-      <span class="nav-icon">⚙️</span><span>Settings</span>
+    <button class="nav-btn" data-tab="settings">
+      <span class="nav-icon">⚙️</span>
+      <span class="nav-label">Settings</span>
     </button>
   </nav>
 
+  <!-- Scripts (Reihenfolge wichtig) -->
+  <script src="config.js"></script>
+  <script src="storage.js"></script>
+  <script src="avatar.js"></script>
   <script src="app.js"></script>
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('service-worker.js')
-          .then(r => console.log('SW:', r.scope))
-          .catch(e => console.log('SW fail:', e));
-      });
-    }
-  </script>
 </body>
 </html>
 

@@ -1,61 +1,69 @@
 ﻿// ============================================================
-// storage.js – Persistenz (localStorage + optionaler Firestore)
+// storage.js – LocalStorage-Persistenz
 // ============================================================
 
-function todayStr(d) {
-  const dt = d || new Date();
-  return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
-}
+const Storage = {
+  // ---- Generisch ----
+  _get(key) {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  },
+  _set(key, value) {
+    localStorage.setItem(key, JSON.stringify(value));
+  },
 
-function isoWeek(date) {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
-  const y = new Date(Date.UTC(d.getUTCFullYear(),0,1));
-  return Math.ceil(((d-y)/86400000+1)/7);
-}
+  // ---- Ziel (Goal) ----
+  getGoal() {
+    return this._get(CONFIG.STORAGE_KEYS.GOAL) || {
+      targetKg: CONFIG.DEFAULT_GOAL_KG,
+      mode: 'deficit'   // 'deficit' = abnehmen, 'surplus' = zunehmen
+    };
+  },
+  setGoal(goal) {
+    this._set(CONFIG.STORAGE_KEYS.GOAL, goal);
+  },
 
-function monthStr(d) {
-  const dt = d || new Date();
-  return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}`;
-}
+  // ---- Tägliche kcal-Einträge ----
+  // Format: { "2026-02-26": -500, "2026-02-27": -300, ... }
+  getEntries() {
+    return this._get(CONFIG.STORAGE_KEYS.ENTRIES) || {};
+  },
+  setEntry(dateStr, kcal) {
+    const entries = this.getEntries();
+    entries[dateStr] = kcal;
+    this._set(CONFIG.STORAGE_KEYS.ENTRIES, entries);
+  },
+  removeEntry(dateStr) {
+    const entries = this.getEntries();
+    delete entries[dateStr];
+    this._set(CONFIG.STORAGE_KEYS.ENTRIES, entries);
+  },
+  getTotalKcal() {
+    const entries = this.getEntries();
+    return Object.values(entries).reduce((sum, v) => sum + v, 0);
+  },
 
-function createDefaultState() {
-  return {
-    month: monthStr(),
-    habits: CONFIG.defaultHabits.map(h => ({...h, createdAt: Date.now(), deleted: false})),
-    checks: {},
-    areas: {
-      body:      { value:70, daysMissed:0, status:'OK', recoveryDays:0 },
-      personal:  { value:70, daysMissed:0, status:'OK', recoveryDays:0 },
-      spiritual: { value:70, daysMissed:0, status:'OK', recoveryDays:0 }
-    },
-    buddy: {
-      neonColor: CONFIG.buddyDefaults.neonColor,
-      progress: CONFIG.buddyDefaults.progress
-    },
-    journal: {},           // { "YYYY-MM-DD": { j1:"...", j2:"..." } }
-    streaks: {},
-    lastUpdateDate: todayStr(),
-    dailyGain: { body:0, personal:0, spiritual:0 },
-    dailyGainDate: todayStr(),
-    restDaysUsedThisWeek: 0,
-    currentISOWeek: isoWeek(new Date())
-  };
-}
+  // ---- Habits ----
+  getHabits() {
+    return this._get(CONFIG.STORAGE_KEYS.HABITS) || [];
+  },
+  setHabits(habits) {
+    this._set(CONFIG.STORAGE_KEYS.HABITS, habits);
+  },
 
-// ---- localStorage Backend ----
-const localBackend = {
-  getState()  { try { return JSON.parse(localStorage.getItem('ht_state')); } catch { return null; } },
-  saveState(s){ localStorage.setItem('ht_state', JSON.stringify(s)); },
-  onRemoteUpdate(){}
-};
+  // ---- Avatar State ----
+  getAvatar() {
+    return this._get(CONFIG.STORAGE_KEYS.AVATAR) || { mood: 'neutral', streak: 0 };
+  },
+  setAvatar(state) {
+    this._set(CONFIG.STORAGE_KEYS.AVATAR, state);
+  },
 
-// ---- Storage Facade ----
-const storage = {
-  _b: localBackend,
-  async setup(){ return null; },
-  async getState(){ return this._b.getState() || createDefaultState(); },
-  async saveState(s){ this._b.saveState(s); },
-  onRemoteUpdate(cb){ this._b.onRemoteUpdate(cb); }
+  // ---- Hilfsfunktionen ----
+  todayStr() {
+    return new Date().toISOString().slice(0, 10);
+  }
 };
 

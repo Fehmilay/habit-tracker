@@ -1,41 +1,45 @@
 ﻿// ============================================================
-// config.js – Zentrale Konfiguration
+// config.js – Globale Konfiguration & Konstanten
 // ============================================================
 
 const CONFIG = {
-  enableSync: false,
-  firebase: { apiKey:'', authDomain:'', projectId:'', storageBucket:'', messagingSenderId:'', appId:'' },
+  // 1 kg Körperfett ≈ 7 700 kcal
+  KCAL_PER_KG: 7700,
 
-  defaultHabits: [
-    { id:'h1', name:'Daily Beten',        category:'spiritual' },
-    { id:'h2', name:'Gym / Sport',        category:'body'      },
-    { id:'h3', name:'-1000 kcal Defizit', category:'body'      },
-    { id:'h4', name:'Uni / Arbeit',       category:'personal'  },
-    { id:'h5', name:'Bewerbung',          category:'personal'  }
-  ],
+  // Standard-Ziel: 10 kg abnehmen
+  DEFAULT_GOAL_KG: 10,
 
-  decay:  { body: 3, personal: 2, spiritual: 2 },
-  gain:   { h1:10, h2:10, h3:8, h4:8, h5:12 },
-  defaultGain: 8,
-  dailyGainCap: 15,
+  // Standard tägliches Defizit (negativ = abnehmen, positiv = zunehmen)
+  DEFAULT_DAILY_KCAL: -500,
 
-  neglect: { low: 59, neglected: 30 },
-  recoveryRequired: 3,
-  maxRestDaysPerWeek: 1,
+  // Habit-Kategorien (aus Manifest: Body, Personal, Spiritual)
+  CATEGORIES: ['Body', 'Personal', 'Spiritual'],
 
-  // Journal-Fragen (Tages-Reflexion)
-  journalQuestions: [
-    { id:'j1', text:'Wofür bin ich heute dankbar?',              category:'spiritual' },
-    { id:'j2', text:'Was war heute mein größter Erfolg?',        category:'personal'  },
-    { id:'j3', text:'Was hätte ich heute besser machen können?', category:'personal'  },
-    { id:'j4', text:'Wie fühlt sich mein Körper heute?',         category:'body'      },
-    { id:'j5', text:'Was ist mein wichtigstes Ziel für morgen?', category:'personal'  }
-  ],
+  // SVG Kreis-Parameter
+  CIRCLE: {
+    RADIUS: 90,
+    STROKE_WIDTH: 14,
+    SIZE: 220
+  },
 
-  // Buddy-Customization Defaults
-  buddyDefaults: {
-    neonColor: '#22c55e',
-    progress: 45
+  // LocalStorage Keys
+  STORAGE_KEYS: {
+    GOAL: 'ht_goal',
+    ENTRIES: 'ht_entries',
+    HABITS: 'ht_habits',
+    AVATAR: 'ht_avatar'
+  },
+
+  // Farben
+  COLORS: {
+    PRIMARY: '#6c63ff',
+    SUCCESS: '#00c853',
+    DANGER: '#ff5252',
+    WARNING: '#ffab40',
+    BG_DARK: '#0a0a0a',
+    CARD_BG: '#1a1a2e',
+    TEXT: '#e0e0e0',
+    TEXT_MUTED: '#888'
   }
 };
 
