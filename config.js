@@ -12,8 +12,23 @@ const CONFIG = {
   // Standard tägliches Defizit (negativ = abnehmen, positiv = zunehmen)
   DEFAULT_DAILY_KCAL: -500,
 
-  // Habit-Kategorien (aus Manifest: Body, Personal, Spiritual)
-  CATEGORIES: ['Body', 'Personal', 'Spiritual'],
+  // Habit-Kategorien
+  CATEGORIES: [
+    { id: 'body',      name: 'Body',      icon: '💪', color: '#6c63ff' },
+    { id: 'personal',  name: 'Personal',  icon: '📚', color: '#ffab40' },
+    { id: 'spiritual', name: 'Spiritual', icon: '🧘', color: '#00c853' }
+  ],
+
+  // Standard-Habits (werden beim ersten Start angelegt)
+  DEFAULT_HABITS: [
+    { id: 'h1', name: 'Workout',      category: 'body',      icon: '🏋️' },
+    { id: 'h2', name: '10k Schritte', category: 'body',      icon: '🚶' },
+    { id: 'h3', name: 'Gesund essen', category: 'body',      icon: '🥗' },
+    { id: 'h4', name: 'Lesen',        category: 'personal',  icon: '📖' },
+    { id: 'h5', name: 'Kein Handy 1h',category: 'personal',  icon: '📵' },
+    { id: 'h6', name: 'Meditation',   category: 'spiritual', icon: '🧘' },
+    { id: 'h7', name: 'Dankbarkeit',  category: 'spiritual', icon: '🙏' }
+  ],
 
   // SVG Kreis-Parameter
   CIRCLE: {
@@ -25,8 +40,9 @@ const CONFIG = {
   // LocalStorage Keys
   STORAGE_KEYS: {
     GOAL: 'ht_goal',
-    ENTRIES: 'ht_entries',
+    KCAL_ENTRIES: 'ht_kcal_entries',
     HABITS: 'ht_habits',
+    CHECKS: 'ht_checks',
     AVATAR: 'ht_avatar'
   },
 

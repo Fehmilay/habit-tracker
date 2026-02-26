@@ -77,7 +77,7 @@ main { padding: 16px 16px 0; max-width: 480px; margin: 0 auto; }
 .nav-label { font-size: .65rem; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
 
 /* ============================================================
-   TODAY TAB
+   TODAY TAB (legacy kcal card – kept for kcal section reuse)
    ============================================================ */
 .today-card {
   background: var(--bg-card); border-radius: var(--radius);
@@ -286,6 +286,164 @@ main { padding: 16px 16px 0; max-width: 480px; margin: 0 auto; }
   pointer-events: none;
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ============================================================
+   TODAY – Header & Fortschrittsbalken
+   ============================================================ */
+.today-header {
+  text-align: center; margin-bottom: 16px;
+}
+.today-header h2 { font-size: 1rem; color: var(--text-muted); margin-bottom: 10px; }
+
+.today-progress-bar {
+  height: 8px; background: rgba(255,255,255,.08); border-radius: 4px;
+  overflow: hidden; margin-bottom: 6px;
+}
+.today-progress-fill {
+  height: 100%; background: linear-gradient(90deg, var(--primary), var(--success));
+  border-radius: 4px; transition: width .4s ease;
+}
+.today-progress-text { font-size: .75rem; color: var(--text-muted); }
+
+/* ============================================================
+   HABITS LIST
+   ============================================================ */
+.habits-list { margin-bottom: 20px; }
+
+.category-section { margin-bottom: 14px; }
+.category-title {
+  font-size: .78rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .6px; margin-bottom: 8px; padding-left: 4px;
+}
+
+.habit-item {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--bg-card); border-radius: var(--radius-sm);
+  padding: 14px 16px; margin-bottom: 6px;
+  cursor: pointer; transition: all .2s;
+  border: 2px solid transparent;
+}
+.habit-item:hover { background: var(--bg-card-hover); }
+.habit-item.checked {
+  border-color: rgba(0, 200, 83, .3);
+  background: rgba(0, 200, 83, .06);
+}
+.habit-item.checked .habit-name {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.habit-check { flex-shrink: 0; }
+.checkbox {
+  width: 28px; height: 28px; border-radius: 8px;
+  border: 2px solid rgba(255,255,255,.2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: .9rem; font-weight: 700; color: transparent;
+  transition: all .2s;
+}
+.checkbox.checked {
+  background: var(--success); border-color: var(--success);
+  color: #fff;
+}
+.habit-icon { font-size: 1.2rem; }
+.habit-name { font-size: .92rem; font-weight: 500; }
+
+/* ============================================================
+   KCAL SECTION (in Today)
+   ============================================================ */
+.kcal-section {
+  background: var(--bg-card); border-radius: var(--radius);
+  padding: 20px; margin-bottom: 16px;
+}
+
+.kcal-logged {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  justify-content: center;
+}
+.kcal-value { font-size: 1.6rem; font-weight: 700; width: 100%; text-align: center; }
+.kcal-value.deficit { color: var(--success); }
+.kcal-value.surplus { color: var(--warning); }
+.kcal-status { font-size: .8rem; color: var(--text-muted); width: 100%; text-align: center; }
+.kcal-actions { display: flex; gap: 8px; margin-top: 4px; }
+
+.kcal-form { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+
+.btn-block { width: 100%; }
+
+/* ============================================================
+   INSIGHTS – Woche Grid
+   ============================================================ */
+.week-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px;
+  margin-bottom: 16px;
+}
+.week-day {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 8px 2px; border-radius: var(--radius-sm);
+  background: var(--bg-card);
+}
+.week-day.today { border: 2px solid var(--primary); }
+.week-label { font-size: .6rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
+
+.week-habits-ring {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: conic-gradient(var(--success) calc(var(--pct) * 1%), rgba(255,255,255,.1) 0);
+  display: flex; align-items: center; justify-content: center;
+}
+.week-pct {
+  background: var(--bg-card); width: 26px; height: 26px;
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: .5rem; font-weight: 700; color: var(--text);
+}
+.week-kcal { font-size: .55rem; }
+.week-kcal.deficit { color: var(--success); }
+.week-kcal.surplus { color: var(--warning); }
+.week-kcal.none { color: var(--text-muted); }
+
+/* ============================================================
+   INSIGHTS – Habit Detail Bars
+   ============================================================ */
+.habit-insights { margin-top: 16px; }
+.habit-insights h3 { font-size: .9rem; color: var(--text-muted); margin-bottom: 12px; }
+
+.habit-insight-row {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 10px;
+}
+.habit-insight-icon { font-size: 1.1rem; width: 24px; text-align: center; }
+.habit-insight-name { font-size: .8rem; width: 90px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.habit-insight-bar {
+  flex: 1; height: 8px; background: rgba(255,255,255,.08);
+  border-radius: 4px; overflow: hidden;
+}
+.habit-insight-fill {
+  height: 100%; border-radius: 4px; transition: width .4s ease;
+}
+.habit-insight-rate { font-size: .75rem; font-weight: 700; color: var(--primary); width: 36px; text-align: right; }
+
+/* ============================================================
+   SETTINGS – Manage Habits
+   ============================================================ */
+.manage-habits-list { margin-bottom: 16px; }
+
+.manage-habit-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,.06);
+}
+.manage-habit-icon { font-size: 1.1rem; }
+.manage-habit-name { flex: 1; font-size: .88rem; }
+.manage-habit-cat { font-size: .7rem; font-weight: 600; }
+
+.add-habit-form {
+  background: rgba(255,255,255,.03); border-radius: var(--radius-sm);
+  padding: 16px; margin-top: 8px;
+}
+.add-habit-form h3 { font-size: .88rem; color: var(--text-muted); margin-bottom: 12px; }
+
+.cat-select.active {
+  background: var(--primary-glow); border-color: var(--primary);
+  color: var(--primary);
+}
 
 /* ============================================================
    SCROLLBAR
