@@ -1,31 +1,32 @@
 // ============================================================
-// avatar.js – Avatar-Buddy Logik & Rendering
+// avatar.js – Avatar-Buddy Logik & Rendering v2
 // ============================================================
 
 const Avatar = {
   moods: {
-    happy:   { emoji: '😄', message: 'Super gemacht! Weiter so!' },
-    neutral: { emoji: '😐', message: 'Los geht\'s! Trag deine kcal ein.' },
-    sad:     { emoji: '😢', message: 'Nicht aufgeben! Morgen wird besser.' },
-    fire:    { emoji: '🔥', message: 'Du bist on fire! Streak läuft!' }
+    fire:    { emoji: '🔥', messages: ['Du bist on fire!', 'Streak läuft! 💪', 'Unaufhaltbar!'] },
+    happy:   { emoji: '😄', messages: ['Super gemacht!', 'Weiter so! 🎉', 'Toll! Bisschen noch!'] },
+    neutral: { emoji: '🙂', messages: ['Los geht\'s!', 'Heute wird\'s gut!', 'Pack\'s an!'] },
+    sad:     { emoji: '😴', messages: ['Noch nichts geschafft', 'Fang klein an!', 'Ein Schritt genügt!'] }
   },
 
-  getMood(progress, todayLogged) {
+  getMood(progress, hasAny) {
     if (progress >= 0.75) return 'fire';
-    if (todayLogged) return 'happy';
-    if (progress >= 0.25) return 'neutral';
+    if (progress >= 0.5 || hasAny) return 'happy';
+    if (progress > 0) return 'neutral';
     return 'sad';
   },
 
-  render(containerId, progress, todayLogged) {
+  render(containerId, progress, hasAny) {
     const el = document.getElementById(containerId);
     if (!el) return;
-    const mood = this.getMood(progress, todayLogged);
+    const mood = this.getMood(progress, hasAny);
     const m = this.moods[mood];
+    const msgIdx = new Date().getMinutes() % m.messages.length;
     el.innerHTML = `
       <div class="avatar-buddy">
         <span class="avatar-emoji">${m.emoji}</span>
-        <p class="avatar-msg">${m.message}</p>
+        <p class="avatar-msg">${m.messages[msgIdx]}</p>
       </div>
     `;
   }

@@ -1,10 +1,8 @@
 ﻿// ============================================================
-// app.js – Hauptlogik der Habit-Tracker App
+// app.js – Hauptlogik v2: ✓/✗ + Tageszeiten + Journal + Kalender
 // ============================================================
 
-document.addEventListener('DOMContentLoaded', () => {
-  App.init();
-});
+document.addEventListener('DOMContentLoaded', () => App.init());
 
 const App = {
   currentTab: 'today',
@@ -25,9 +23,9 @@ const App = {
   //  NAVIGATION
   // ============================================================
   bindNav() {
-    document.querySelectorAll('.nav-btn').forEach(btn => {
-      btn.addEventListener('click', () => this.showTab(btn.dataset.tab));
-    });
+    document.querySelectorAll('.nav-btn').forEach(btn =>
+      btn.addEventListener('click', () => this.showTab(btn.dataset.tab))
+    );
   },
 
   showTab(tab) {
@@ -44,74 +42,91 @@ const App = {
   },
 
   // ============================================================
-  //  TODAY TAB – Habits abhaken + kcal eintragen
+  //  TODAY TAB
   // ============================================================
   renderToday() {
-    const container = document.getElementById('today-content');
+    const c = document.getElementById('today-content');
     const today = Storage.todayStr();
     const habits = Storage.getHabits();
-    const checks = Storage.getChecks(today);
+    const dayChecks = Storage.getDayChecks(today);
     const kcalEntries = Storage.getKcalEntries();
     const todayKcal = kcalEntries[today];
     const hasKcal = todayKcal !== undefined;
 
-    // Fortschritt
-    const checkedCount = checks.length;
-    const totalCount = habits.length;
-    const habitProgress = totalCount > 0 ? checkedCount / totalCount : 0;
+    // Nur habits die heute fällig sind
+    const dueHabits = habits.filter(h => Storage.isHabitDueToday(h, today));
+    const doneCount = dueHabits.filter(h => dayChecks[h.id]?.status === 'done').length;
+    const skippedCount = dueHabits.filter(h => dayChecks[h.id]?.status === 'skipped').length;
+    const totalDue = dueHabits.length;
+    const progress = totalDue > 0 ? doneCount / totalDue : 0;
 
     // Avatar
-    Avatar.render('avatar-container', habitProgress, checkedCount > 0);
+    Avatar.render('avatar-container', progress, doneCount > 0);
 
-    // Habits nach Kategorie gruppieren
-    const grouped = {};
-    CONFIG.CATEGORIES.forEach(cat => { grouped[cat.id] = []; });
-    habits.forEach(h => {
-      if (grouped[h.category]) grouped[h.category].push(h);
-      else grouped['body'].push(h); // fallback
+    // Quote
+    const quoteIdx = new Date().getDate() % CONFIG.QUOTES.length;
+    const quote = CONFIG.QUOTES[quoteIdx];
+
+    // Habits nach Tageszeit gruppieren
+    const byTime = {};
+    CONFIG.TIME_SLOTS.forEach(ts => { byTime[ts.id] = []; });
+    dueHabits.forEach(h => {
+      const slot = h.timeSlot || 'anytime';
+      if (byTime[slot]) byTime[slot].push(h);
+      else byTime['anytime'].push(h);
     });
 
-    container.innerHTML = `
+    // Nicht-fällige Habits (diese Woche schon erledigt)
+    const notDueHabits = habits.filter(h => !Storage.isHabitDueToday(h, today));
+
+    c.innerHTML = `
+      <div class="quote-banner">"${quote}"</div>
+
       <div class="today-header">
-        <h2>${this.formatDate(today)}</h2>
+        <h2>${this.formatDateLong(today)}</h2>
         <div class="today-progress-bar">
-          <div class="today-progress-fill" style="width: ${habitProgress * 100}%"></div>
+          <div class="today-progress-fill" style="width: ${progress * 100}%"></div>
         </div>
-        <span class="today-progress-text">${checkedCount} / ${totalCount} Habits</span>
+        <div class="today-stats-row">
+          <span class="ts-done">✓ ${doneCount}</span>
+          <span class="ts-skipped">✗ ${skippedCount}</span>
+          <span class="ts-remaining">○ ${totalDue - doneCount - skippedCount}</span>
+          <span class="ts-total">${doneCount}/${totalDue} erledigt</span>
+        </div>
       </div>
 
-      <!-- HABITS LISTE -->
-      <div class="habits-list">
-        ${CONFIG.CATEGORIES.map(cat => {
-          const catHabits = grouped[cat.id];
-          if (catHabits.length === 0) return '';
-          return `
-            <div class="category-section">
-              <h3 class="category-title" style="color: ${cat.color}">
-                ${cat.icon} ${cat.name}
-              </h3>
-              ${catHabits.map(h => {
-                const done = checks.includes(h.id);
-                return `
-                  <div class="habit-item ${done ? 'checked' : ''}" data-id="${h.id}">
-                    <div class="habit-check">
-                      <div class="checkbox ${done ? 'checked' : ''}" style="--cat-color: ${cat.color}">
-                        ${done ? '✓' : ''}
-                      </div>
-                    </div>
-                    <span class="habit-icon">${h.icon}</span>
-                    <span class="habit-name">${h.name}</span>
-                  </div>
-                `;
-              }).join('')}
-            </div>
-          `;
-        }).join('')}
-      </div>
+      <!-- HABITS BY TIMESLOT -->
+      ${CONFIG.TIME_SLOTS.map(ts => {
+        const slotHabits = byTime[ts.id];
+        if (slotHabits.length === 0) return '';
+        return `
+          <div class="timeslot-section">
+            <h3 class="timeslot-title">${ts.icon} ${ts.name} <span class="timeslot-range">${ts.range}</span></h3>
+            ${slotHabits.map(h => this.renderHabitItem(h, dayChecks, today)).join('')}
+          </div>
+        `;
+      }).join('')}
 
-      <!-- KCAL SECTION -->
+      ${notDueHabits.length > 0 ? `
+        <div class="not-due-section">
+          <h3 class="timeslot-title dim">✅ Diese Woche schon erledigt</h3>
+          ${notDueHabits.map(h => {
+            const freq = CONFIG.FREQUENCIES.find(f => f.id === h.frequency);
+            const weekDone = Storage.getWeeklyDoneCount(h.id, today);
+            return `
+              <div class="habit-item done-week">
+                <span class="habit-icon">${h.icon}</span>
+                <span class="habit-name">${h.name}</span>
+                <span class="freq-badge">${weekDone}/${freq?.perWeek || '?'} ✓</span>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      ` : ''}
+
+      <!-- KCAL -->
       <div class="kcal-section">
-        <h3 class="category-title" style="color: ${CONFIG.COLORS.WARNING}">🔥 Kalorien</h3>
+        <h3 class="timeslot-title" style="color: ${CONFIG.COLORS.WARNING}">🔥 Kalorien</h3>
         ${hasKcal ? `
           <div class="kcal-logged">
             <span class="kcal-value ${todayKcal < 0 ? 'deficit' : 'surplus'}">
@@ -138,31 +153,120 @@ const App = {
           </div>
         `}
       </div>
+
+      <!-- JOURNAL -->
+      <div class="journal-section">
+        <h3 class="timeslot-title" style="color: ${CONFIG.COLORS.PRIMARY}">📝 Tages-Journal</h3>
+        <textarea id="journal-input" class="journal-textarea" placeholder="Wie war dein Tag? Was hast du gelernt? Wofür bist du dankbar?"
+          >${Storage.getJournal(today)}</textarea>
+        <button class="btn btn-primary btn-block btn-sm" id="btn-save-journal">Journal speichern</button>
+
+        ${this.renderRecentJournals(today)}
+      </div>
     `;
 
-    // ---- Event Listeners: Habits ----
-    container.querySelectorAll('.habit-item').forEach(el => {
-      el.addEventListener('click', () => {
-        const id = el.dataset.id;
-        Storage.toggleCheck(today, id);
+    this.bindTodayEvents(today, hasKcal, todayKcal);
+  },
+
+  renderHabitItem(h, dayChecks, today) {
+    const check = dayChecks[h.id];
+    const status = check?.status || 'pending'; // 'done', 'skipped', 'pending'
+    const reason = check?.reason || '';
+    const cat = CONFIG.CATEGORIES.find(ct => ct.id === h.category);
+    const freq = CONFIG.FREQUENCIES.find(f => f.id === h.frequency);
+    const weekDone = (h.frequency && h.frequency !== 'daily')
+      ? Storage.getWeeklyDoneCount(h.id, today) : null;
+
+    return `
+      <div class="habit-item status-${status}" data-id="${h.id}">
+        <div class="habit-actions-col">
+          <button class="hab-btn hab-done ${status === 'done' ? 'active' : ''}" data-id="${h.id}" data-action="done" title="Erledigt">✓</button>
+          <button class="hab-btn hab-skip ${status === 'skipped' ? 'active' : ''}" data-id="${h.id}" data-action="skip" title="Nicht geschafft">✗</button>
+        </div>
+        <div class="habit-info">
+          <div class="habit-name-row">
+            <span class="habit-icon">${h.icon}</span>
+            <span class="habit-name">${h.name}</span>
+          </div>
+          <div class="habit-meta">
+            <span class="cat-dot" style="background:${cat?.color || '#888'}"></span>
+            <span>${cat?.name || ''}</span>
+            ${freq && freq.id !== 'daily' ? `<span class="freq-tag">${freq.short}${weekDone !== null ? ` (${weekDone}/${freq.perWeek})` : ''}</span>` : ''}
+          </div>
+        </div>
+        ${status === 'skipped' ? `
+          <div class="skip-reason-area">
+            <input type="text" class="skip-reason-input" data-id="${h.id}" placeholder="Warum nicht? (optional)" value="${reason}">
+          </div>
+        ` : ''}
+      </div>
+    `;
+  },
+
+  renderRecentJournals(today) {
+    const journals = Storage.getAllJournals();
+    const dates = Object.keys(journals).filter(d => d < today).sort().reverse().slice(0, 3);
+    if (dates.length === 0) return '';
+    return `
+      <div class="recent-journals">
+        <h4>Letzte Einträge</h4>
+        ${dates.map(d => `
+          <div class="journal-preview">
+            <span class="jp-date">${this.formatDateShort(d)}</span>
+            <p class="jp-text">${journals[d].length > 120 ? journals[d].slice(0, 120) + '…' : journals[d]}</p>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  },
+
+  bindTodayEvents(today, hasKcal, todayKcal) {
+    const c = document.getElementById('today-content');
+
+    // ---- Habit Done/Skip ----
+    c.querySelectorAll('.hab-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        const action = btn.dataset.action;
+        const current = Storage.getHabitStatus(today, id);
+
+        if (action === 'done') {
+          if (current?.status === 'done') {
+            Storage.removeHabitStatus(today, id);
+          } else {
+            Storage.setHabitStatus(today, id, 'done', '');
+          }
+        } else { // skip
+          if (current?.status === 'skipped') {
+            Storage.removeHabitStatus(today, id);
+          } else {
+            Storage.setHabitStatus(today, id, 'skipped', '');
+          }
+        }
         this.renderToday();
       });
     });
 
-    // ---- Event Listeners: kcal ----
+    // ---- Skip Reason Input ----
+    c.querySelectorAll('.skip-reason-input').forEach(inp => {
+      inp.addEventListener('change', () => {
+        Storage.setHabitStatus(today, inp.dataset.id, 'skipped', inp.value.trim());
+      });
+      inp.addEventListener('click', e => e.stopPropagation());
+    });
+
+    // ---- kcal ----
     if (hasKcal) {
       document.getElementById('btn-edit-kcal')?.addEventListener('click', () => {
-        Storage.removeKcalEntry(today);
-        this.renderToday();
+        Storage.removeKcalEntry(today); this.renderToday();
       });
       document.getElementById('btn-delete-kcal')?.addEventListener('click', () => {
-        Storage.removeKcalEntry(today);
-        this.renderToday();
+        Storage.removeKcalEntry(today); this.renderToday();
       });
     } else {
       let mode = 'deficit';
       const input = document.getElementById('kcal-input');
-
       document.getElementById('btn-minus')?.addEventListener('click', () => {
         input.value = Math.max(0, parseInt(input.value || 0) - 50);
       });
@@ -186,13 +290,20 @@ const App = {
         this.renderToday();
       });
     }
+
+    // ---- Journal ----
+    document.getElementById('btn-save-journal')?.addEventListener('click', () => {
+      const text = document.getElementById('journal-input').value;
+      Storage.setJournal(today, text);
+      this.showToast('Journal gespeichert ✓');
+    });
   },
 
   // ============================================================
-  //  INSIGHTS TAB – kcal Fortschrittskreis + Habit Stats
+  //  INSIGHTS TAB – Kalender + Kreis + Stats
   // ============================================================
   renderInsights() {
-    const container = document.getElementById('insights-content');
+    const c = document.getElementById('insights-content');
     const goal = Storage.getGoal();
     const totalKcal = Storage.getTotalKcal();
     const targetKcal = goal.targetKg * CONFIG.KCAL_PER_KG;
@@ -204,28 +315,25 @@ const App = {
     const kcalEntries = Storage.getKcalEntries();
     const kcalDays = Object.keys(kcalEntries);
     const avgKcal = kcalDays.length > 0
-      ? Math.round(Object.values(kcalEntries).reduce((a, b) => a + b, 0) / kcalDays.length)
-      : 0;
+      ? Math.round(Object.values(kcalEntries).reduce((a, b) => a + b, 0) / kcalDays.length) : 0;
 
-    // Habit stats
     const habits = Storage.getHabits();
     const allChecks = Storage.getAllChecks();
     const habitStreak = this.calcHabitStreak(habits, allChecks);
     const kcalStreak = this.calcKcalStreak(kcalEntries);
 
-    // Habit completion letzte 7 Tage
-    const last7 = this.getLast7Days(habits, allChecks, kcalEntries);
-
-    // Gesamte Habit-Completion
+    // Overall completion
     const checkDays = Object.keys(allChecks);
-    let totalChecks = 0, totalPossible = 0;
+    let totalDone = 0, totalPossible = 0;
     checkDays.forEach(d => {
-      totalChecks += allChecks[d].length;
-      totalPossible += habits.length;
+      const dayHabits = habits.filter(h => Storage.isHabitDueToday(h, d));
+      const dayChecks = allChecks[d];
+      totalDone += Object.values(dayChecks).filter(v => v.status === 'done').length;
+      totalPossible += dayHabits.length;
     });
-    const overallRate = totalPossible > 0 ? Math.round((totalChecks / totalPossible) * 100) : 0;
+    const overallRate = totalPossible > 0 ? Math.round((totalDone / totalPossible) * 100) : 0;
 
-    container.innerHTML = `
+    c.innerHTML = `
       <!-- KCAL FORTSCHRITTSKREIS -->
       <div class="insights-hero">
         <h2>🔥 Kalorien-Ziel</h2>
@@ -234,45 +342,35 @@ const App = {
         </div>
         <p class="insights-sub">
           ${kgDone} von ${goal.targetKg} kg ${goal.mode === 'deficit' ? 'abgenommen' : 'zugenommen'}
-          &middot; noch ${kgRemaining} kg
+          · noch ${kgRemaining} kg
         </p>
       </div>
 
-      <!-- STATS GRID -->
+      <!-- STATS -->
       <div class="insights-stats">
-        <div class="stat-card">
-          <span class="stat-card-value">${habitStreak}</span>
-          <span class="stat-card-label">Habit Streak 🔥</span>
-        </div>
-        <div class="stat-card">
-          <span class="stat-card-value">${overallRate}%</span>
-          <span class="stat-card-label">Completion Rate</span>
-        </div>
-        <div class="stat-card">
-          <span class="stat-card-value">${kcalStreak}</span>
-          <span class="stat-card-label">kcal Streak 📊</span>
-        </div>
-        <div class="stat-card">
-          <span class="stat-card-value">${avgKcal > 0 ? '+' : ''}${avgKcal}</span>
-          <span class="stat-card-label">⌀ kcal/Tag</span>
-        </div>
+        <div class="stat-card"><span class="stat-card-value">${habitStreak}</span><span class="stat-card-label">Habit Streak 🔥</span></div>
+        <div class="stat-card"><span class="stat-card-value">${overallRate}%</span><span class="stat-card-label">Completion Rate</span></div>
+        <div class="stat-card"><span class="stat-card-value">${kcalStreak}</span><span class="stat-card-label">kcal Streak 📊</span></div>
+        <div class="stat-card"><span class="stat-card-value">${avgKcal > 0 ? '+' : ''}${avgKcal}</span><span class="stat-card-label">⌀ kcal/Tag</span></div>
       </div>
 
-      <!-- LETZTE 7 TAGE -->
-      <div class="last7-section">
-        <h3>Letzte 7 Tage</h3>
-        <div class="week-grid">
-          ${last7.map(d => `
-            <div class="week-day ${d.isToday ? 'today' : ''}">
-              <span class="week-label">${d.label}</span>
-              <div class="week-habits-ring" style="--pct: ${d.habitPct}">
-                <span class="week-pct">${d.habitPct}%</span>
-              </div>
-              <span class="week-kcal ${d.kcal < 0 ? 'deficit' : d.kcal > 0 ? 'surplus' : 'none'}">
-                ${d.kcal !== 0 ? (d.kcal > 0 ? '+' : '') + d.kcal : '–'}
-              </span>
-            </div>
-          `).join('')}
+      <!-- KALENDER -->
+      <div class="calendar-section">
+        <div class="calendar-nav">
+          <button class="btn btn-icon btn-sm" id="cal-prev">◀</button>
+          <h3 id="cal-title"></h3>
+          <button class="btn btn-icon btn-sm" id="cal-next">▶</button>
+        </div>
+        <div class="calendar-weekdays">
+          ${['Mo','Di','Mi','Do','Fr','Sa','So'].map(d => `<span>${d}</span>`).join('')}
+        </div>
+        <div id="cal-grid" class="calendar-grid"></div>
+        <div class="calendar-legend">
+          <span class="legend-item"><span class="legend-dot leg-perfect"></span>Alles ✓</span>
+          <span class="legend-item"><span class="legend-dot leg-good"></span>&gt;50%</span>
+          <span class="legend-item"><span class="legend-dot leg-some"></span>&lt;50%</span>
+          <span class="legend-item"><span class="legend-dot leg-skip"></span>Skipped</span>
+          <span class="legend-item"><span class="legend-dot leg-none"></span>Nichts</span>
         </div>
       </div>
 
@@ -280,63 +378,131 @@ const App = {
       <div class="habit-insights">
         <h3>Habits im Detail</h3>
         ${habits.map(h => {
-          const cat = CONFIG.CATEGORIES.find(c => c.id === h.category);
-          const daysChecked = Object.values(allChecks).filter(arr => arr.includes(h.id)).length;
-          const totalDays = Math.max(checkDays.length, 1);
-          const rate = Math.round((daysChecked / totalDays) * 100);
+          const cat = CONFIG.CATEGORIES.find(ct => ct.id === h.category);
+          let doneCount = 0;
+          Object.values(allChecks).forEach(dc => { if (dc[h.id]?.status === 'done') doneCount++; });
+          const totalD = Math.max(checkDays.length, 1);
+          const rate = Math.round((doneCount / totalD) * 100);
+          const skippedCount = Object.values(allChecks).filter(dc => dc[h.id]?.status === 'skipped').length;
           return `
             <div class="habit-insight-row">
               <span class="habit-insight-icon">${h.icon}</span>
               <span class="habit-insight-name">${h.name}</span>
               <div class="habit-insight-bar">
-                <div class="habit-insight-fill" style="width: ${rate}%; background: ${cat?.color || CONFIG.COLORS.PRIMARY}"></div>
+                <div class="habit-insight-fill" style="width:${rate}%; background:${cat?.color || CONFIG.COLORS.PRIMARY}"></div>
               </div>
               <span class="habit-insight-rate">${rate}%</span>
+              ${skippedCount > 0 ? `<span class="skip-count">${skippedCount}✗</span>` : ''}
             </div>
           `;
         }).join('')}
       </div>
     `;
+
+    // Kalender rendern
+    this._calMonth = new Date().getMonth();
+    this._calYear = new Date().getFullYear();
+    this.renderCalendar();
+    document.getElementById('cal-prev')?.addEventListener('click', () => {
+      this._calMonth--;
+      if (this._calMonth < 0) { this._calMonth = 11; this._calYear--; }
+      this.renderCalendar();
+    });
+    document.getElementById('cal-next')?.addEventListener('click', () => {
+      this._calMonth++;
+      if (this._calMonth > 11) { this._calMonth = 0; this._calYear++; }
+      this.renderCalendar();
+    });
+  },
+
+  renderCalendar() {
+    const grid = document.getElementById('cal-grid');
+    const title = document.getElementById('cal-title');
+    if (!grid || !title) return;
+
+    const y = this._calYear, m = this._calMonth;
+    const months = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+    title.textContent = `${months[m]} ${y}`;
+
+    const firstDay = new Date(y, m, 1);
+    const lastDay = new Date(y, m + 1, 0);
+    const startPad = (firstDay.getDay() + 6) % 7; // Mo=0
+    const daysInMonth = lastDay.getDate();
+
+    const habits = Storage.getHabits();
+    const allChecks = Storage.getAllChecks();
+    const kcalEntries = Storage.getKcalEntries();
+    const journals = Storage.getAllJournals();
+    const todayStr = Storage.todayStr();
+
+    let html = '';
+    // Padding
+    for (let i = 0; i < startPad; i++) html += '<div class="cal-day empty"></div>';
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const isToday = dateStr === todayStr;
+      const isFuture = dateStr > todayStr;
+
+      if (isFuture) {
+        html += `<div class="cal-day future${isToday ? ' today' : ''}">${d}</div>`;
+        continue;
+      }
+
+      const dayChecks = allChecks[dateStr] || {};
+      const dueHabits = habits.filter(h => Storage.isHabitDueToday(h, dateStr));
+      const doneC = Object.values(dayChecks).filter(v => v.status === 'done').length;
+      const skipC = Object.values(dayChecks).filter(v => v.status === 'skipped').length;
+      const dueC = dueHabits.length || 1;
+      const pct = doneC / dueC;
+      const hasKcal = kcalEntries[dateStr] !== undefined;
+      const hasJournal = !!journals[dateStr];
+
+      let cls = 'cal-none';
+      if (pct >= 1 && skipC === 0) cls = 'cal-perfect';
+      else if (pct >= 0.5) cls = 'cal-good';
+      else if (doneC > 0 || skipC > 0) cls = 'cal-some';
+      else if (skipC > 0) cls = 'cal-skip';
+
+      html += `
+        <div class="cal-day ${cls}${isToday ? ' today' : ''}" title="${doneC}✓ ${skipC}✗ / ${dueC} fällig">
+          ${d}
+          <div class="cal-dots">
+            ${hasKcal ? '<span class="cd-kcal"></span>' : ''}
+            ${hasJournal ? '<span class="cd-journal"></span>' : ''}
+          </div>
+        </div>
+      `;
+    }
+    grid.innerHTML = html;
   },
 
   renderProgressCircle(progress, percentText, goal, kgDone) {
-    const R = CONFIG.CIRCLE.RADIUS;
-    const STROKE = CONFIG.CIRCLE.STROKE_WIDTH;
-    const SIZE = CONFIG.CIRCLE.SIZE;
-    const C = 2 * Math.PI * R;
-    const offset = C * (1 - progress);
-
-    let strokeColor = CONFIG.COLORS.PRIMARY;
-    if (progress >= 1) strokeColor = CONFIG.COLORS.SUCCESS;
-    else if (progress >= 0.5) strokeColor = '#4fc3f7';
-
+    const R = CONFIG.CIRCLE.RADIUS, S = CONFIG.CIRCLE.STROKE_WIDTH, SZ = CONFIG.CIRCLE.SIZE;
+    const C = 2 * Math.PI * R, offset = C * (1 - progress);
+    let col = CONFIG.COLORS.PRIMARY;
+    if (progress >= 1) col = CONFIG.COLORS.SUCCESS;
+    else if (progress >= 0.5) col = '#4fc3f7';
     return `
-      <svg class="progress-ring" width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}">
-        <circle cx="${SIZE/2}" cy="${SIZE/2}" r="${R}" fill="none"
-                stroke="${CONFIG.COLORS.CARD_BG}" stroke-width="${STROKE}"/>
-        <circle class="progress-ring-circle"
-                cx="${SIZE/2}" cy="${SIZE/2}" r="${R}" fill="none"
-                stroke="${strokeColor}" stroke-width="${STROKE}"
-                stroke-linecap="round"
-                stroke-dasharray="${C}" stroke-dashoffset="${offset}"
-                transform="rotate(-90 ${SIZE/2} ${SIZE/2})"/>
-        <text x="50%" y="45%" text-anchor="middle" dy=".3em"
-              class="progress-text">${percentText}%</text>
-        <text x="50%" y="60%" text-anchor="middle"
-              class="progress-sub">${kgDone} / ${goal.targetKg} kg</text>
-      </svg>
-    `;
+      <svg class="progress-ring" width="${SZ}" height="${SZ}" viewBox="0 0 ${SZ} ${SZ}">
+        <circle cx="${SZ/2}" cy="${SZ/2}" r="${R}" fill="none" stroke="${CONFIG.COLORS.CARD_BG}" stroke-width="${S}"/>
+        <circle class="progress-ring-circle" cx="${SZ/2}" cy="${SZ/2}" r="${R}" fill="none"
+                stroke="${col}" stroke-width="${S}" stroke-linecap="round"
+                stroke-dasharray="${C}" stroke-dashoffset="${offset}" transform="rotate(-90 ${SZ/2} ${SZ/2})"/>
+        <text x="50%" y="45%" text-anchor="middle" dy=".3em" class="progress-text">${percentText}%</text>
+        <text x="50%" y="60%" text-anchor="middle" class="progress-sub">${kgDone} / ${goal.targetKg} kg</text>
+      </svg>`;
   },
 
   // ============================================================
-  //  SETTINGS TAB – Habits verwalten + kcal Ziel
+  //  SETTINGS TAB
   // ============================================================
   renderSettings() {
-    const container = document.getElementById('settings-content');
+    const c = document.getElementById('settings-content');
     const goal = Storage.getGoal();
     const habits = Storage.getHabits();
 
-    container.innerHTML = `
+    c.innerHTML = `
       <!-- KCAL ZIEL -->
       <div class="settings-card">
         <h2>🔥 Kalorien-Ziel</h2>
@@ -360,33 +526,63 @@ const App = {
         <h2>📋 Habits verwalten</h2>
         <div class="manage-habits-list">
           ${habits.map(h => {
-            const cat = CONFIG.CATEGORIES.find(c => c.id === h.category);
+            const cat = CONFIG.CATEGORIES.find(ct => ct.id === h.category);
+            const ts = CONFIG.TIME_SLOTS.find(t => t.id === h.timeSlot);
+            const freq = CONFIG.FREQUENCIES.find(f => f.id === h.frequency);
             return `
               <div class="manage-habit-item">
                 <span class="manage-habit-icon">${h.icon}</span>
-                <span class="manage-habit-name">${h.name}</span>
-                <span class="manage-habit-cat" style="color: ${cat?.color || '#888'}">${cat?.name || ''}</span>
+                <div class="manage-habit-info">
+                  <span class="manage-habit-name">${h.name}</span>
+                  <span class="manage-habit-tags">
+                    <span style="color:${cat?.color || '#888'}">${cat?.name || ''}</span>
+                    · ${ts?.icon || ''} ${ts?.name || ''}
+                    · ${freq?.short || 'Tägl.'}
+                  </span>
+                </div>
                 <button class="btn btn-sm btn-danger-outline btn-delete-habit" data-id="${h.id}">✕</button>
               </div>
             `;
           }).join('')}
         </div>
 
-        <!-- Neues Habit hinzufügen -->
+        <!-- Neues Habit -->
         <div class="add-habit-form">
-          <h3>Neues Habit</h3>
+          <h3>➕ Neues Habit</h3>
           <div class="setting-group">
-            <input type="text" id="new-habit-name" placeholder="Name (z.B. Joggen)">
+            <label>Name</label>
+            <input type="text" id="new-habit-name" placeholder="z.B. Joggen">
           </div>
           <div class="setting-group">
-            <input type="text" id="new-habit-icon" placeholder="Emoji (z.B. 🏃)" maxlength="4">
+            <label>Emoji</label>
+            <input type="text" id="new-habit-icon" placeholder="z.B. 🏃" maxlength="4">
           </div>
           <div class="setting-group">
             <label>Kategorie</label>
-            <div class="toggle-row">
+            <div class="toggle-row flex-wrap">
               ${CONFIG.CATEGORIES.map((cat, i) => `
-                <button class="btn toggle-btn cat-select ${i === 0 ? 'active' : ''}" data-cat="${cat.id}" style="--cat-color: ${cat.color}">
+                <button class="btn toggle-btn cat-select ${i === 0 ? 'active' : ''}" data-cat="${cat.id}">
                   ${cat.icon} ${cat.name}
+                </button>
+              `).join('')}
+            </div>
+          </div>
+          <div class="setting-group">
+            <label>Tageszeit</label>
+            <div class="toggle-row flex-wrap">
+              ${CONFIG.TIME_SLOTS.map((ts, i) => `
+                <button class="btn toggle-btn ts-select ${i === 3 ? 'active' : ''}" data-ts="${ts.id}">
+                  ${ts.icon} ${ts.name}
+                </button>
+              `).join('')}
+            </div>
+          </div>
+          <div class="setting-group">
+            <label>Frequenz</label>
+            <div class="toggle-row flex-wrap">
+              ${CONFIG.FREQUENCIES.map((f, i) => `
+                <button class="btn toggle-btn freq-select ${i === 0 ? 'active' : ''}" data-freq="${f.id}">
+                  ${f.name}
                 </button>
               `).join('')}
             </div>
@@ -408,8 +604,14 @@ const App = {
       </div>
     `;
 
-    // ---- Event Listeners ----
+    this.bindSettingsEvents(goal, c);
+  },
+
+  bindSettingsEvents(goal, c) {
     let mode = goal.mode;
+    let selectedCat = CONFIG.CATEGORIES[0].id;
+    let selectedTs = 'anytime';
+    let selectedFreq = 'daily';
 
     document.getElementById('set-deficit')?.addEventListener('click', () => {
       mode = 'deficit';
@@ -424,7 +626,7 @@ const App = {
 
     document.getElementById('goal-kg')?.addEventListener('input', () => {
       const kg = parseFloat(document.getElementById('goal-kg').value) || 0;
-      const hint = container.querySelector('.setting-group .hint');
+      const hint = c.querySelector('.setting-group .hint');
       if (hint) hint.textContent = `= ${(kg * CONFIG.KCAL_PER_KG).toLocaleString('de-DE')} kcal`;
     });
 
@@ -435,53 +637,48 @@ const App = {
     });
 
     // Delete habits
-    container.querySelectorAll('.btn-delete-habit').forEach(btn => {
+    c.querySelectorAll('.btn-delete-habit').forEach(btn => {
       btn.addEventListener('click', () => {
-        if (confirm('Habit löschen?')) {
-          Storage.removeHabit(btn.dataset.id);
-          this.renderSettings();
-        }
+        if (confirm('Habit löschen?')) { Storage.removeHabit(btn.dataset.id); this.renderSettings(); }
       });
     });
+
+    // Toggle selectors
+    const bindToggles = (selector, callback) => {
+      c.querySelectorAll(selector).forEach(btn => {
+        btn.addEventListener('click', () => {
+          c.querySelectorAll(selector).forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          callback(btn);
+        });
+      });
+    };
+    bindToggles('.cat-select', btn => selectedCat = btn.dataset.cat);
+    bindToggles('.ts-select', btn => selectedTs = btn.dataset.ts);
+    bindToggles('.freq-select', btn => selectedFreq = btn.dataset.freq);
 
     // Add habit
-    let selectedCat = CONFIG.CATEGORIES[0].id;
-    container.querySelectorAll('.cat-select').forEach(btn => {
-      btn.addEventListener('click', () => {
-        container.querySelectorAll('.cat-select').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        selectedCat = btn.dataset.cat;
-      });
-    });
-
     document.getElementById('btn-add-habit')?.addEventListener('click', () => {
       const name = document.getElementById('new-habit-name').value.trim();
       const icon = document.getElementById('new-habit-icon').value.trim() || '⭐';
       if (!name) { this.showToast('Bitte Name eingeben'); return; }
       Storage.addHabit({
-        id: Storage.generateId(),
-        name,
-        icon,
-        category: selectedCat
+        id: Storage.generateId(), name, icon,
+        category: selectedCat, timeSlot: selectedTs, frequency: selectedFreq
       });
       this.showToast(`"${name}" hinzugefügt ✓`);
       this.renderSettings();
     });
 
-    // Delete kcal entries
-    container.querySelectorAll('.btn-delete-entry').forEach(btn => {
-      btn.addEventListener('click', () => {
-        Storage.removeKcalEntry(btn.dataset.date);
-        this.renderSettings();
-      });
+    // Delete kcal
+    c.querySelectorAll('.btn-delete-entry').forEach(btn => {
+      btn.addEventListener('click', () => { Storage.removeKcalEntry(btn.dataset.date); this.renderSettings(); });
     });
 
     // Reset
     document.getElementById('btn-reset-all')?.addEventListener('click', () => {
       if (confirm('Wirklich ALLE Daten löschen?')) {
-        localStorage.clear();
-        this.showToast('Alle Daten gelöscht');
-        this.showTab('today');
+        localStorage.clear(); this.showToast('Alle Daten gelöscht'); this.showTab('today');
       }
     });
   },
@@ -490,23 +687,16 @@ const App = {
     const entries = Storage.getKcalEntries();
     const dates = Object.keys(entries).sort().reverse();
     if (dates.length === 0) return '<p class="hint">Noch keine kcal-Einträge.</p>';
-    return `
-      <div class="history-list">
-        ${dates.map(d => `
-          <div class="history-item">
-            <span class="history-date">${this.formatDate(d)}</span>
-            <span class="history-val ${entries[d] < 0 ? 'deficit' : 'surplus'}">
-              ${entries[d] > 0 ? '+' : ''}${entries[d]} kcal
-            </span>
-            <button class="btn btn-sm btn-danger-outline btn-delete-entry" data-date="${d}">✕</button>
-          </div>
-        `).join('')}
-      </div>
-    `;
+    return `<div class="history-list">${dates.map(d => `
+      <div class="history-item">
+        <span class="history-date">${this.formatDateShort(d)}</span>
+        <span class="history-val ${entries[d] < 0 ? 'deficit' : 'surplus'}">${entries[d] > 0 ? '+' : ''}${entries[d]} kcal</span>
+        <button class="btn btn-sm btn-danger-outline btn-delete-entry" data-date="${d}">✕</button>
+      </div>`).join('')}</div>`;
   },
 
   // ============================================================
-  //  HILFSFUNKTIONEN
+  //  HELPERS
   // ============================================================
 
   calcHabitStreak(habits, allChecks) {
@@ -514,16 +704,13 @@ const App = {
     let streak = 0;
     const today = new Date();
     for (let i = 0; i < 365; i++) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
+      const d = new Date(today); d.setDate(d.getDate() - i);
       const key = d.toISOString().slice(0, 10);
-      const dayChecks = allChecks[key] || [];
-      // Mindestens 50% der Habits müssen erledigt sein
-      if (dayChecks.length >= Math.ceil(habits.length / 2)) {
-        streak++;
-      } else {
-        break;
-      }
+      const dc = allChecks[key] || {};
+      const doneCount = Object.values(dc).filter(v => v.status === 'done').length;
+      const dueHabits = habits.filter(h => Storage.isHabitDueToday(h, key));
+      if (dueHabits.length > 0 && doneCount >= Math.ceil(dueHabits.length / 2)) streak++;
+      else break;
     }
     return streak;
   },
@@ -532,57 +719,33 @@ const App = {
     let streak = 0;
     const today = new Date();
     for (let i = 0; i < 365; i++) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
+      const d = new Date(today); d.setDate(d.getDate() - i);
       const key = d.toISOString().slice(0, 10);
-      if (kcalEntries[key] !== undefined) {
-        streak++;
-      } else {
-        break;
-      }
+      if (kcalEntries[key] !== undefined) streak++; else break;
     }
     return streak;
   },
 
-  getLast7Days(habits, allChecks, kcalEntries) {
-    const result = [];
-    const today = new Date();
-    const todayStr = today.toISOString().slice(0, 10);
-    const dayNames = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
-      const key = d.toISOString().slice(0, 10);
-      const dayChecks = allChecks[key] || [];
-      const pct = habits.length > 0 ? Math.round((dayChecks.length / habits.length) * 100) : 0;
-      result.push({
-        date: key,
-        label: dayNames[d.getDay()],
-        habitPct: pct,
-        kcal: kcalEntries[key] || 0,
-        isToday: key === todayStr
-      });
-    }
-    return result;
+  formatDateLong(dateStr) {
+    const d = new Date(dateStr + 'T12:00:00');
+    const days = ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'];
+    const months = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+    return `${days[d.getDay()]}, ${d.getDate()}. ${months[d.getMonth()]} ${d.getFullYear()}`;
   },
 
-  formatDate(dateStr) {
+  formatDateShort(dateStr) {
     const [y, m, d] = dateStr.split('-');
     return `${d}.${m}.${y}`;
   },
 
   showToast(msg) {
-    const existing = document.querySelector('.toast');
-    if (existing) existing.remove();
-    const toast = document.createElement('div');
-    toast.className = 'toast';
-    toast.textContent = msg;
-    document.body.appendChild(toast);
-    requestAnimationFrame(() => toast.classList.add('show'));
-    setTimeout(() => {
-      toast.classList.remove('show');
-      setTimeout(() => toast.remove(), 300);
-    }, 2000);
+    document.querySelector('.toast')?.remove();
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    requestAnimationFrame(() => t.classList.add('show'));
+    setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 2000);
   }
 };
 

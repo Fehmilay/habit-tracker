@@ -1,116 +1,141 @@
 ﻿// ============================================================
-// storage.js – LocalStorage-Persistenz
+// storage.js – LocalStorage-Persistenz (v2 mit ✓/✗ + Journal)
 // ============================================================
 
 const Storage = {
-  // ---- Generisch ----
   _get(key) {
-    try {
-      const raw = localStorage.getItem(key);
-      return raw ? JSON.parse(raw) : null;
-    } catch { return null; }
+    try { const r = localStorage.getItem(key); return r ? JSON.parse(r) : null; }
+    catch { return null; }
   },
-  _set(key, value) {
-    localStorage.setItem(key, JSON.stringify(value));
-  },
+  _set(key, value) { localStorage.setItem(key, JSON.stringify(value)); },
 
-  // ---- Ziel (kg / kcal Goal) ----
+  // ---- Goal ----
   getGoal() {
-    return this._get(CONFIG.STORAGE_KEYS.GOAL) || {
-      targetKg: CONFIG.DEFAULT_GOAL_KG,
-      mode: 'deficit'
-    };
+    return this._get(CONFIG.STORAGE_KEYS.GOAL) || { targetKg: CONFIG.DEFAULT_GOAL_KG, mode: 'deficit' };
   },
-  setGoal(goal) {
-    this._set(CONFIG.STORAGE_KEYS.GOAL, goal);
-  },
+  setGoal(g) { this._set(CONFIG.STORAGE_KEYS.GOAL, g); },
 
-  // ---- Tägliche kcal-Einträge ----
-  // { "2026-02-26": -500, ... }
-  getKcalEntries() {
-    return this._get(CONFIG.STORAGE_KEYS.KCAL_ENTRIES) || {};
-  },
-  setKcalEntry(dateStr, kcal) {
-    const entries = this.getKcalEntries();
-    entries[dateStr] = kcal;
-    this._set(CONFIG.STORAGE_KEYS.KCAL_ENTRIES, entries);
-  },
-  removeKcalEntry(dateStr) {
-    const entries = this.getKcalEntries();
-    delete entries[dateStr];
-    this._set(CONFIG.STORAGE_KEYS.KCAL_ENTRIES, entries);
-  },
-  getTotalKcal() {
-    const entries = this.getKcalEntries();
-    return Object.values(entries).reduce((sum, v) => sum + v, 0);
-  },
+  // ---- kcal ----
+  getKcalEntries() { return this._get(CONFIG.STORAGE_KEYS.KCAL_ENTRIES) || {}; },
+  setKcalEntry(d, v) { const e = this.getKcalEntries(); e[d] = v; this._set(CONFIG.STORAGE_KEYS.KCAL_ENTRIES, e); },
+  removeKcalEntry(d) { const e = this.getKcalEntries(); delete e[d]; this._set(CONFIG.STORAGE_KEYS.KCAL_ENTRIES, e); },
+  getTotalKcal() { return Object.values(this.getKcalEntries()).reduce((s, v) => s + v, 0); },
 
   // ---- Habits ----
   getHabits() {
     const h = this._get(CONFIG.STORAGE_KEYS.HABITS);
-    if (h && h.length > 0) return h;
-    // Beim ersten Start Default-Habits anlegen
-    this.setHabits(CONFIG.DEFAULT_HABITS);
-    return CONFIG.DEFAULT_HABITS;
-  },
-  setHabits(habits) {
-    this._set(CONFIG.STORAGE_KEYS.HABITS, habits);
-  },
-  addHabit(habit) {
-    const habits = this.getHabits();
-    habits.push(habit);
-    this.setHabits(habits);
-  },
-  removeHabit(id) {
-    const habits = this.getHabits().filter(h => h.id !== id);
-    this.setHabits(habits);
-    // Auch alle Checks für dieses Habit löschen
-    const checks = this.getAllChecks();
-    for (const date in checks) {
-      checks[date] = checks[date].filter(hid => hid !== id);
+    if (h && h.length > 0) {
+      // Migration: Alte Habits ohne timeSlot/frequency
+      let migrated = false;
+      h.forEach(hab => {
+        if (!hab.timeSlot)  { hab.timeSlot = 'anytime'; migrated = true; }
+        if (!hab.frequency) { hab.frequency = 'daily';   migrated = true; }
+      });
+      if (migrated) this.setHabits(h);
+      return h;
     }
+    this.setHabits(CONFIG.DEFAULT_HABITS);
+    return [...CONFIG.DEFAULT_HABITS];
+  },
+  setHabits(h) { this._set(CONFIG.STORAGE_KEYS.HABITS, h); },
+  addHabit(h)  { const all = this.getHabits(); all.push(h); this.setHabits(all); },
+  removeHabit(id) {
+    this.setHabits(this.getHabits().filter(h => h.id !== id));
+    const checks = this.getAllChecks();
+    for (const d in checks) { delete checks[d][id]; }
     this._set(CONFIG.STORAGE_KEYS.CHECKS, checks);
   },
 
-  // ---- Habit Checks (pro Tag) ----
-  // { "2026-02-26": ["h1","h3"], ... }
-  getAllChecks() {
-    return this._get(CONFIG.STORAGE_KEYS.CHECKS) || {};
-  },
-  getChecks(dateStr) {
+  // ---- Checks v2 ----
+  // Format: { "2026-02-26": { "h1": { status: "done" }, "h2": { status: "skipped", reason: "Krank" } } }
+  getAllChecks() { return this._get(CONFIG.STORAGE_KEYS.CHECKS) || {}; },
+  getDayChecks(d) { return this.getAllChecks()[d] || {}; },
+
+  setHabitStatus(dateStr, habitId, status, reason) {
     const all = this.getAllChecks();
-    return all[dateStr] || [];
-  },
-  toggleCheck(dateStr, habitId) {
-    const all = this.getAllChecks();
-    if (!all[dateStr]) all[dateStr] = [];
-    const idx = all[dateStr].indexOf(habitId);
-    if (idx >= 0) {
-      all[dateStr].splice(idx, 1);
-    } else {
-      all[dateStr].push(habitId);
-    }
+    if (!all[dateStr]) all[dateStr] = {};
+    all[dateStr][habitId] = { status, reason: reason || '' };
     this._set(CONFIG.STORAGE_KEYS.CHECKS, all);
-    return all[dateStr];
   },
-  isChecked(dateStr, habitId) {
-    return this.getChecks(dateStr).includes(habitId);
+  removeHabitStatus(dateStr, habitId) {
+    const all = this.getAllChecks();
+    if (all[dateStr]) { delete all[dateStr][habitId]; }
+    this._set(CONFIG.STORAGE_KEYS.CHECKS, all);
   },
-
-  // ---- Avatar State ----
-  getAvatar() {
-    return this._get(CONFIG.STORAGE_KEYS.AVATAR) || { mood: 'neutral', streak: 0 };
-  },
-  setAvatar(state) {
-    this._set(CONFIG.STORAGE_KEYS.AVATAR, state);
+  getHabitStatus(dateStr, habitId) {
+    const day = this.getDayChecks(dateStr);
+    return day[habitId] || null; // null = not yet, { status: 'done'|'skipped', reason }
   },
 
-  // ---- Hilfsfunktionen ----
-  todayStr() {
-    return new Date().toISOString().slice(0, 10);
+  // Convenience: Anzahl "done" an einem Tag
+  countDone(dateStr) {
+    const day = this.getDayChecks(dateStr);
+    return Object.values(day).filter(v => v.status === 'done').length;
   },
-  generateId() {
-    return 'h' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
-  }
+  countSkipped(dateStr) {
+    const day = this.getDayChecks(dateStr);
+    return Object.values(day).filter(v => v.status === 'skipped').length;
+  },
+
+  // ---- Frequenz-Check: Ist das Habit heute fällig? ----
+  isHabitDueToday(habit, dateStr) {
+    if (!habit.frequency || habit.frequency === 'daily') return true;
+    const freq = CONFIG.FREQUENCIES.find(f => f.id === habit.frequency);
+    if (!freq) return true;
+    // Wochenanfang berechnen (Montag)
+    const d = new Date(dateStr + 'T12:00:00');
+    const dayOfWeek = (d.getDay() + 6) % 7; // Mo=0
+    const weekStart = new Date(d);
+    weekStart.setDate(d.getDate() - dayOfWeek);
+    // Wie oft wurde dieses Habit diese Woche schon "done"?
+    const allChecks = this.getAllChecks();
+    let doneThisWeek = 0;
+    for (let i = 0; i < 7; i++) {
+      const wd = new Date(weekStart);
+      wd.setDate(weekStart.getDate() + i);
+      const key = wd.toISOString().slice(0, 10);
+      if (key === dateStr) continue; // Heutigen Tag nicht mitzählen
+      if (key > dateStr) break;
+      const check = allChecks[key]?.[habit.id];
+      if (check?.status === 'done') doneThisWeek++;
+    }
+    return doneThisWeek < freq.perWeek;
+  },
+
+  // Frequenz: Wie oft diese Woche Done
+  getWeeklyDoneCount(habitId, dateStr) {
+    const d = new Date(dateStr + 'T12:00:00');
+    const dayOfWeek = (d.getDay() + 6) % 7;
+    const weekStart = new Date(d);
+    weekStart.setDate(d.getDate() - dayOfWeek);
+    const allChecks = this.getAllChecks();
+    let count = 0;
+    for (let i = 0; i < 7; i++) {
+      const wd = new Date(weekStart);
+      wd.setDate(weekStart.getDate() + i);
+      const key = wd.toISOString().slice(0, 10);
+      if (allChecks[key]?.[habitId]?.status === 'done') count++;
+    }
+    return count;
+  },
+
+  // ---- Journal ----
+  // { "2026-02-26": "Heute war gut...", ... }
+  getAllJournals() { return this._get(CONFIG.STORAGE_KEYS.JOURNAL) || {}; },
+  getJournal(d) { return this.getAllJournals()[d] || ''; },
+  setJournal(d, text) {
+    const all = this.getAllJournals();
+    if (text.trim()) { all[d] = text.trim(); }
+    else { delete all[d]; }
+    this._set(CONFIG.STORAGE_KEYS.JOURNAL, all);
+  },
+
+  // ---- Avatar ----
+  getAvatar() { return this._get(CONFIG.STORAGE_KEYS.AVATAR) || { mood: 'neutral', streak: 0 }; },
+  setAvatar(s) { this._set(CONFIG.STORAGE_KEYS.AVATAR, s); },
+
+  // ---- Helpers ----
+  todayStr() { return new Date().toISOString().slice(0, 10); },
+  generateId() { return 'h' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5); }
 };
 
