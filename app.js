@@ -17,10 +17,22 @@ let touchStartTime = 0;
 // ===========================
 document.addEventListener('DOMContentLoaded', async () => {
   state = await storage.getState();
+  ensureStateShape();
   processDateLogic();
   renderCurrentView();
   setupSwipe();
 });
+
+function ensureStateShape() {
+  if (!state.buddy) state.buddy = {};
+  if (!/^#[0-9a-fA-F]{6}$/.test(state.buddy.neonColor || '')) {
+    state.buddy.neonColor = CONFIG.buddyDefaults.neonColor || '#22c55e';
+  }
+  if (!Number.isFinite(+state.buddy.progress)) {
+    state.buddy.progress = Number.isFinite(+CONFIG.buddyDefaults.progress) ? +CONFIG.buddyDefaults.progress : 45;
+  }
+  state.buddy.progress = Math.max(0, Math.min(100, +state.buddy.progress));
+}
 
 // ===========================
 //  SWIPE / SLIDE (Today-View Tag-Wechsel)
@@ -83,12 +95,20 @@ function processDateLogic() {
     const mKey    = monthStr(dateObj);
 
     const donePerCat = { body:false, personal:false, spiritual:false };
+    let doneCount = 0;
+    let totalCount = 0;
     if (mKey === state.month) {
       for (const h of state.habits) {
         if (h.deleted) continue;
-        if (state.checks[h.id]?.[dayNum]) donePerCat[h.category] = true;
+        totalCount++;
+        if (state.checks[h.id]?.[dayNum]) {
+          donePerCat[h.category] = true;
+          doneCount++;
+        }
       }
     }
+
+    updateBuddyProgressLongTerm(doneCount, totalCount);
 
     // ISO week reset
     const wk = isoWeek(dateObj);
@@ -264,28 +284,30 @@ function saveJournalEntry(dateKey, questionId, value) {
 //  BUDDY CUSTOMIZATION
 // ===========================
 function saveBuddyOption(key, value) {
-  const allowed = {
-    hairStyle: ['short','messy','curly','cap'],
-    eyebrowStyle: ['normal','thick','thin'],
-    skinTone: ['light','medium','tan','brown','dark'],
-    outfitStyle: ['casual','sport','business'],
-    signatureItem: ['none','glasses','watch','headphones','chain']
-  };
-
-  if (key === 'beard') {
-    state.buddy[key] = !!value;
-    save();
-    renderCurrentView();
-    return;
-  }
-
-  if (allowed[key] && !allowed[key].includes(value)) {
-    return;
-  }
-
-  state.buddy[key] = value;
+  if (key !== 'neonColor') return;
+  if (!/^#[0-9a-fA-F]{6}$/.test(value || '')) return;
+  state.buddy.neonColor = value.toLowerCase();
   save();
   renderCurrentView();
+}
+
+function updateBuddyProgressLongTerm(doneCount, totalCount) {
+  if (!totalCount || totalCount <= 0) return;
+  const ratio = doneCount / totalCount;
+  let delta = -2;
+  if (ratio >= 0.8) delta = 3;
+  else if (ratio >= 0.5) delta = 1;
+  else if (ratio > 0.2) delta = 0;
+  else if (ratio === 0) delta = -3;
+  state.buddy.progress = Math.max(0, Math.min(100, (state.buddy.progress || 45) + delta));
+}
+
+function getBuddyStageLabel(progress) {
+  if (progress >= 85) return 'Legend';
+  if (progress >= 65) return 'Pro';
+  if (progress >= 45) return 'Solid';
+  if (progress >= 25) return 'Starter';
+  return 'Low';
 }
 
 // ===========================
@@ -578,32 +600,31 @@ function drawChart(labels,data,max){
 // ===========================
 function renderSettingsView(container) {
   const b = state.buddy;
+  const buddyProgress = Math.round(b.progress || 0);
+  const stageLabel = getBuddyStageLabel(buddyProgress);
   container.innerHTML = `
     <div class="settings-view">
       <h2>Einstellungen</h2>
 
       <!-- Buddy Customization -->
       <div class="setting-card">
-        <h3>✏️ Buddy anpassen</h3>
+        <h3>✏️ Neon Stickman</h3>
         <div class="buddy-preview" id="buddyPreview"></div>
 
         <div class="cust-grid">
-          ${custSelect('Frisur','hairStyle',b.hairStyle,[
-            {v:'short',l:'Kurz'},{v:'messy',l:'Messy'},{v:'curly',l:'Lockig'},{v:'cap',l:'Cap'}
-          ])}
-          ${custSelect('Augenbrauen','eyebrowStyle',b.eyebrowStyle,[
-            {v:'normal',l:'Normal'},{v:'thick',l:'Dick'},{v:'thin',l:'Dünn'}
-          ])}
-          ${custToggle('Bart','beard',b.beard)}
-          ${custSelect('Hautton','skinTone',b.skinTone,[
-            {v:'light',l:'Hell'},{v:'medium',l:'Mittel'},{v:'tan',l:'Tan'},{v:'brown',l:'Braun'},{v:'dark',l:'Dunkel'}
-          ])}
-          ${custSelect('Outfit','outfitStyle',b.outfitStyle,[
-            {v:'casual',l:'Casual'},{v:'sport',l:'Sport'},{v:'business',l:'Business'}
-          ])}
-          ${custSelect('Accessoire','signatureItem',b.signatureItem,[
-            {v:'none',l:'Keins'},{v:'glasses',l:'Brille'},{v:'watch',l:'Uhr'},{v:'headphones',l:'Kopfhörer'},{v:'chain',l:'Kette'}
-          ])}
+          <div class="cust-item">
+            <label class="cust-label">Neon-Farbe</label>
+            <input type="color" class="input input-color" value="${b.neonColor || '#22c55e'}" onchange="saveBuddyOption('neonColor',this.value)" />
+          </div>
+          <div class="cust-item">
+            <label class="cust-label">Langzeit-Entwicklung</label>
+            <div class="evo-box">
+              <div class="evo-row"><span>Stage</span><strong>${stageLabel}</strong></div>
+              <div class="evo-row"><span>Progress</span><strong>${buddyProgress}%</strong></div>
+              <div class="evo-bar"><div class="evo-fill" style="width:${buddyProgress}%"></div></div>
+              <p class="dim" style="margin-top:6px;">Steigt bei hoher Tageserfüllung, sinkt bei niedriger Erfüllung.</p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -684,7 +705,7 @@ function exportData() {
 function importData(ev) {
   const f=ev.target.files[0]; if(!f)return;
   const r=new FileReader();
-  r.onload=async e=>{try{state=JSON.parse(e.target.result);await save();renderCurrentView();toast('Importiert!');}catch{toast('Fehler!');}};
+  r.onload=async e=>{try{state=JSON.parse(e.target.result);ensureStateShape();await save();renderCurrentView();toast('Importiert!');}catch{toast('Fehler!');}};
   r.readAsText(f);
 }
 

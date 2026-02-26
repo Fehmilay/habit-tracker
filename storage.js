@@ -29,7 +29,10 @@ function createDefaultState() {
       personal:  { value:70, daysMissed:0, status:'OK', recoveryDays:0 },
       spiritual: { value:70, daysMissed:0, status:'OK', recoveryDays:0 }
     },
-    buddy: {...CONFIG.buddyDefaults},
+    buddy: {
+      neonColor: CONFIG.buddyDefaults.neonColor,
+      progress: CONFIG.buddyDefaults.progress
+    },
     journal: {},           // { "YYYY-MM-DD": { j1:"...", j2:"..." } }
     streaks: {},
     lastUpdateDate: todayStr(),

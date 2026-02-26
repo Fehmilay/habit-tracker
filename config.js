@@ -34,12 +34,8 @@ const CONFIG = {
 
   // Buddy-Customization Defaults
   buddyDefaults: {
-    hairStyle: 'short',    // short | curly | long | buzz | wavy | braids
-    eyebrowStyle: 'normal',// normal | thick | thin
-    beard: false,
-    skinTone: 'medium',    // light | medium | tan | brown | dark
-    outfitStyle: 'casual', // casual | sport | business
-    signatureItem: 'none'  // none | glasses | cap | watch | headphones | chain
+    neonColor: '#22c55e',
+    progress: 45
   }
 };
 
