@@ -250,3 +250,255 @@ code{background:var(--surface);padding:2px 6px;border-radius:4px;font-size:.85em
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
 
+/* ============================================================
+   BUDDY AVATAR – Layer Visibility & State System
+   ============================================================ */
+
+/* Container */
+.avatar-container,.buddy-preview{
+  display:flex;align-items:center;justify-content:center;overflow:visible;
+}
+.buddy-wrap{display:block;width:100%;height:100%;}
+.buddy-svg{width:100%;height:100%;overflow:visible;}
+
+/* ---- Hidden by default (shown only in certain states) ---- */
+.layer-hood,
+.layer-hood-front,
+.layer-arms-fit,
+.layer-arms-neglected,
+.layer-arms-prayer,
+.layer-arms-laptop,
+.layer-arms-phone,
+.layer-item-wristband,
+.layer-item-headband,
+.layer-item-watch,
+.layer-item-chain,
+.layer-item-headphones,
+.layer-beard,
+.layer-glasses,
+.layer-eyebags,
+.layer-fog,
+.eyes-happy,
+.eyes-tired,
+.eyes-stressed,
+.eyes-blink,
+.brows-worried,
+.brows-focused,
+.mouth-smile-big,
+.mouth-smile-warm,
+.mouth-sad,
+.mouth-stressed,
+.aura-peaceful,
+.aura-stressed,
+.aura-react-body,
+.aura-react-personal,
+.effect-sparkles-fit,
+.effect-sparkles-personal,
+.effect-sparkles-spiritual,
+.effect-sweat,
+.effect-dark-particles,
+.outfit-fit-stripes,
+.shoes-fit-accent,
+.outfit-business { display:none; }
+
+/* Hair — only active style rendered */
+.hair-messy,.hair-curly,.hair-cap { display:none; }
+.hair-short { display:block; }
+
+/* ---- Hair Styles ---- */
+.buddy-hair-messy .hair-short  { display:none; }
+.buddy-hair-messy .hair-messy  { display:block; }
+.buddy-hair-curly .hair-short  { display:none; }
+.buddy-hair-curly .hair-curly  { display:block; }
+.buddy-hair-cap   .hair-short  { display:none; }
+.buddy-hair-cap   .hair-cap    { display:block; }
+.buddy-hair-cap   .layer-cap   { display:block; }
+.buddy-hair-short .layer-cap   { display:none; }
+.buddy-hair-messy .layer-cap   { display:none; }
+.buddy-hair-curly .layer-cap   { display:none; }
+
+/* ---- Skin Tone Custom Props ---- */
+.buddy-skin-light  .buddy-svg{--sk:#FDDBB4;--ss:#F0BC80;}
+.buddy-skin-medium .buddy-svg{--sk:#E8A96A;--ss:#C88040;}
+.buddy-skin-tan    .buddy-svg{--sk:#C9884A;--ss:#A06530;}
+.buddy-skin-brown  .buddy-svg{--sk:#8B5E3C;--ss:#6A3E20;}
+.buddy-skin-dark   .buddy-svg{--sk:#5C3320;--ss:#3E2010;}
+
+/* ---- Accessory Layers ---- */
+.buddy-has-glasses        .layer-glasses           { display:block; }
+.buddy-has-watch          .layer-item-watch        { display:block; }
+.buddy-has-chain          .layer-item-chain        { display:block; }
+.buddy-has-headphones     .layer-item-headphones   { display:block; }
+.buddy-has-beard          .layer-beard             { display:block; }
+
+/* ============================================================
+   STATE: neutral (default)  → default arms, neutral mouth
+   ============================================================ */
+.state-neutral .layer-arms-default { display:block; }
+.state-neutral .mouth-neutral      { display:block; }
+
+/* ============================================================
+   STATE: body-fit
+   ============================================================ */
+.state-body-fit .layer-arms-default  { display:none; }
+.state-body-fit .layer-arms-fit      { display:block; }
+.state-body-fit .layer-item-wristband{ display:block; }
+.state-body-fit .layer-item-headband { display:block; }
+.state-body-fit .outfit-fit-stripes  { display:block; }
+.state-body-fit .shoes-fit-accent    { display:block; }
+.state-body-fit .eyes-happy          { display:block; }
+.state-body-fit .eyes-default        { display:none; }
+.state-body-fit .mouth-neutral       { display:none; }
+.state-body-fit .mouth-smile-big     { display:block; }
+.state-body-fit .effect-sparkles-fit { display:block; }
+.state-body-fit .buddy-svg           { filter:drop-shadow(0 0 10px rgba(34,197,94,.35)); }
+
+/* ============================================================
+   STATE: body-soft
+   ============================================================ */
+.state-body-soft .layer-arms-default { display:block; }
+.state-body-soft .eyes-tired         { display:block; }
+.state-body-soft .eyes-default       { display:none; }
+.state-body-soft .mouth-neutral      { display:block; }
+
+/* ============================================================
+   STATE: body-neglected
+   ============================================================ */
+.state-body-neglected .layer-arms-default   { display:none; }
+.state-body-neglected .layer-arms-neglected { display:block; }
+.state-body-neglected .layer-hood           { display:block; }
+.state-body-neglected .layer-hood-front     { display:block; }
+.state-body-neglected .eyes-tired           { display:block; }
+.state-body-neglected .eyes-default         { display:none; }
+.state-body-neglected .mouth-neutral        { display:none; }
+.state-body-neglected .mouth-sad            { display:block; }
+.state-body-neglected .effect-sweat         { display:block; }
+.state-body-neglected .buddy-svg            { filter:brightness(.88) saturate(.6); }
+.state-body-neglected .buddy-breathe        { animation:jitter .5s infinite; }
+
+/* ============================================================
+   STATE: spiritual-peaceful
+   ============================================================ */
+.state-spiritual-peaceful .layer-arms-default { display:none; }
+.state-spiritual-peaceful .layer-arms-prayer  { display:block; }
+.state-spiritual-peaceful .aura-peaceful       { display:block; }
+.state-spiritual-peaceful .eyes-happy          { display:block; }
+.state-spiritual-peaceful .eyes-default        { display:none; }
+.state-spiritual-peaceful .mouth-neutral       { display:none; }
+.state-spiritual-peaceful .mouth-smile-warm    { display:block; }
+.state-spiritual-peaceful .effect-sparkles-spiritual { display:block; }
+.state-spiritual-peaceful .buddy-svg           { filter:drop-shadow(0 0 12px rgba(251,191,36,.3)); }
+
+/* ============================================================
+   STATE: spiritual-sad
+   ============================================================ */
+.state-spiritual-sad .layer-arms-default { display:block; }
+.state-spiritual-sad .mouth-neutral      { display:none; }
+.state-spiritual-sad .mouth-sad          { display:block; }
+.state-spiritual-sad .buddy-svg          { filter:brightness(.85) saturate(.5); }
+
+/* ============================================================
+   STATE: spiritual-stressed
+   ============================================================ */
+.state-spiritual-stressed .layer-arms-default    { display:block; }
+.state-spiritual-stressed .brows-worried          { display:block; }
+.state-spiritual-stressed .brows-default          { display:none; }
+.state-spiritual-stressed .eyes-stressed          { display:block; }
+.state-spiritual-stressed .eyes-default           { display:none; }
+.state-spiritual-stressed .mouth-neutral          { display:none; }
+.state-spiritual-stressed .mouth-stressed         { display:block; }
+.state-spiritual-stressed .aura-stressed           { display:block; }
+.state-spiritual-stressed .effect-dark-particles  { display:block; }
+.state-spiritual-stressed .buddy-svg              { filter:brightness(.82) saturate(.5); }
+.state-spiritual-stressed .buddy-breathe          { animation:jitter .25s infinite; }
+
+/* ============================================================
+   STATE: personal-focused
+   ============================================================ */
+.state-personal-focused .layer-arms-default     { display:none; }
+.state-personal-focused .layer-arms-laptop      { display:block; }
+.state-personal-focused .layer-glasses          { display:block; }
+.state-personal-focused .brows-focused          { display:block; }
+.state-personal-focused .brows-default          { display:none; }
+.state-personal-focused .eyes-default           { display:none; }
+.state-personal-focused .eyes-happy             { display:block; }
+.state-personal-focused .mouth-neutral          { display:none; }
+.state-personal-focused .mouth-smile-big        { display:block; }
+.state-personal-focused .effect-sparkles-personal{ display:block; }
+.state-personal-focused .outfit-business        { display:none; } /* keep hoodie */
+.state-personal-focused .buddy-svg              { filter:drop-shadow(0 0 8px rgba(96,165,250,.25)); }
+
+/* ============================================================
+   STATE: personal-foggy
+   ============================================================ */
+.state-personal-foggy .layer-arms-default { display:block; }
+.state-personal-foggy .eyes-tired         { display:block; }
+.state-personal-foggy .eyes-default       { display:none; }
+.state-personal-foggy .layer-eyebags      { display:block; }
+.state-personal-foggy .layer-fog          { display:block; }
+.state-personal-foggy .mouth-neutral      { display:block; }
+.state-personal-foggy .buddy-svg          { filter:brightness(.9) saturate(.6); }
+
+/* ============================================================
+   STATE: personal-avoiding
+   ============================================================ */
+.state-personal-avoiding .layer-arms-default { display:none; }
+.state-personal-avoiding .layer-arms-phone   { display:block; }
+.state-personal-avoiding .layer-eyebags      { display:block; }
+.state-personal-avoiding .eyes-tired         { display:block; }
+.state-personal-avoiding .eyes-default       { display:none; }
+.state-personal-avoiding .mouth-neutral      { display:none; }
+.state-personal-avoiding .mouth-sad          { display:block; }
+.state-personal-avoiding .aura-stressed       { display:block; }
+.state-personal-avoiding .buddy-svg          { filter:brightness(.84) saturate(.5); }
+
+/* ============================================================
+   IDLE ANIMATIONS
+   ============================================================ */
+.buddy-breathe {
+  animation: buddyBreathe 4s ease-in-out infinite;
+  transform-origin: 100px 200px;
+}
+@keyframes buddyBreathe {
+  0%,100% { transform: scaleY(1)   scaleX(1); }
+  50%      { transform: scaleY(1.015) scaleX(.995); }
+}
+
+/* Random blink (trigger via JS interval) */
+.do-blink .eyes-blink  { display:block !important; }
+.do-blink .eyes-default,
+.do-blink .eyes-happy,
+.do-blink .eyes-tired,
+.do-blink .eyes-stressed { display:none !important; }
+
+/* Float/hover loop */
+.avatar-container .buddy-wrap {
+  animation: buddyFloat 6s ease-in-out infinite;
+}
+@keyframes buddyFloat {
+  0%,100% { transform: translateY(0); }
+  50%      { transform: translateY(-5px); }
+}
+
+/* ============================================================
+   MICRO-REACTION ANIMATIONS
+   ============================================================ */
+@keyframes reactionPop {
+  0%   { transform: scale(1) rotate(0deg); }
+  20%  { transform: scale(1.06) rotate(-2deg); }
+  50%  { transform: scale(1.04) rotate(2deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+@keyframes reactionGlow {
+  0%,100% { filter: brightness(1); }
+  50%     { filter: brightness(1.2) drop-shadow(0 0 14px rgba(34,197,94,.5)); }
+}
+
+.react-body     .buddy-breathe { animation: reactionPop .6s ease, buddyFloat 6s ease-in-out 0.6s infinite; }
+.react-personal .buddy-breathe { animation: reactionGlow .8s ease, buddyFloat 6s ease-in-out 0.8s infinite; }
+.react-spiritual .buddy-breathe{ animation: reactionPop .5s ease, reactionGlow .8s ease, buddyFloat 6s ease-in-out 0.8s infinite; }
+
+.react-body      .aura-react-body     { display:block !important; }
+.react-personal  .aura-react-personal { display:block !important; }
+.react-spiritual .aura-peaceful       { display:block !important; }
+

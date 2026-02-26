@@ -20,6 +20,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   processDateLogic();
   renderCurrentView();
   setupSwipe();
+  // Occasional blink loop
+  setInterval(() => {
+    const el = document.getElementById('buddyContainer');
+    if (!el) return;
+    el.classList.add('do-blink');
+    setTimeout(() => el.classList.remove('do-blink'), 160);
+  }, 4800 + Math.random() * 2400);
 });
 
 // ===========================
@@ -195,10 +202,11 @@ function toggleHabit(habitId, dayNum) {
     }
     updateNeglect(cat);
 
-    // Micro-animation on the row
+    // Micro-animation on the row + buddy reaction
     setTimeout(() => {
       const row = document.querySelector(`[data-habit="${habitId}"]`);
       if (row && !was) row.classList.add('anim-done');
+      if (!was) triggerBuddyReaction(cat);
     }, 30);
   }
 
