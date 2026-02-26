@@ -600,3 +600,274 @@ main { padding: 16px 16px 0; max-width: 480px; margin: 0 auto; }
   body { padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 16px); }
 }
 
+/* ============================================================
+   WEEKDAY PICKER (Settings)
+   ============================================================ */
+.weekday-picker {
+  display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px;
+}
+.day-chip {
+  width: 40px; height: 36px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 10px; font-size: .78rem; font-weight: 700;
+  background: rgba(255,255,255,.06); border: 2px solid rgba(255,255,255,.1);
+  color: var(--text-muted); cursor: pointer;
+  transition: all .2s; font-family: var(--font);
+}
+.day-chip.active {
+  background: var(--primary-glow); border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* ============================================================
+   SYNC BUTTONS (Settings)
+   ============================================================ */
+.sync-buttons {
+  display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px;
+}
+.sync-buttons .btn { flex: 1; min-width: 0; text-align: center; }
+
+/* ============================================================
+   EVENING CHECK-IN OVERLAY
+   ============================================================ */
+.checkin-overlay {
+  position: fixed; inset: 0; z-index: 300;
+  background: rgba(0, 0, 0, .92);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+  overflow-y: auto;
+}
+.checkin-overlay.hidden { display: none !important; }
+
+.checkin-container {
+  width: 100%; max-width: 400px;
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  padding: 28px 22px;
+  animation: checkinSlideUp .35s ease;
+}
+@keyframes checkinSlideUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.checkin-header {
+  text-align: center; margin-bottom: 22px;
+}
+.checkin-header h2 {
+  font-size: 1.25rem; margin-bottom: 6px;
+}
+.checkin-header p {
+  font-size: .85rem; color: var(--text-muted); line-height: 1.4;
+}
+
+/* ---- Check-in Area Cards ---- */
+.checkin-area {
+  background: rgba(255,255,255,.04);
+  border: 2px solid rgba(255,255,255,.08);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  transition: all .25s;
+}
+.checkin-area.ci-done {
+  border-color: rgba(0, 200, 83, .4);
+  background: rgba(0, 200, 83, .08);
+}
+.checkin-area.ci-missed {
+  border-color: rgba(255, 82, 82, .4);
+  background: rgba(255, 82, 82, .06);
+}
+.checkin-area.ci-redeemed {
+  border-color: rgba(108, 99, 255, .4);
+  background: rgba(108, 99, 255, .08);
+}
+
+.checkin-area-top {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 10px;
+}
+.checkin-area-icon {
+  width: 36px; height: 36px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 10px; font-size: 1.1rem;
+}
+.checkin-area-name {
+  font-size: .95rem; font-weight: 600;
+}
+
+.checkin-area-btns {
+  display: flex; gap: 8px;
+}
+
+/* ---- Check-in Buttons ---- */
+.ci-btn {
+  flex: 1; padding: 10px 8px; font-size: .82rem;
+  border-radius: 10px;
+  background: rgba(255,255,255,.06);
+  border: 2px solid rgba(255,255,255,.1);
+  color: var(--text-muted);
+  text-align: center;
+}
+.ci-done-btn.active {
+  background: rgba(0, 200, 83, .15);
+  border-color: var(--success);
+  color: var(--success);
+}
+.ci-miss-btn.active {
+  background: rgba(255, 82, 82, .15);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.ci-continue {
+  margin-top: 16px;
+}
+.ci-continue:disabled {
+  opacity: .35; pointer-events: none;
+}
+
+.ci-skip-all {
+  margin-top: 8px; opacity: .5;
+}
+
+/* ---- Step Badge & Question ---- */
+.ci-step-badge {
+  display: inline-block;
+  background: var(--primary-glow);
+  color: var(--primary);
+  font-size: .7rem; font-weight: 700;
+  padding: 3px 12px; border-radius: 20px;
+  margin-bottom: 10px;
+}
+.ci-question {
+  font-size: .95rem; font-weight: 600;
+  color: var(--text); margin-top: 6px;
+}
+
+/* ---- Reflection Reasons ---- */
+.ci-reasons {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.ci-reason-btn {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 16px; border-radius: var(--radius-sm);
+  background: rgba(255,255,255,.05);
+  border: 2px solid rgba(255,255,255,.08);
+  color: var(--text); font-size: .88rem; font-weight: 500;
+  text-align: left;
+  transition: all .15s;
+}
+.ci-reason-btn:active {
+  border-color: var(--primary);
+  background: var(--primary-glow);
+}
+
+/* ---- Redemption Tasks ---- */
+.ci-tasks {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.ci-task-btn {
+  display: flex; align-items: center; gap: 12px;
+  padding: 16px; border-radius: var(--radius-sm);
+  background: rgba(255,255,255,.05);
+  border: 2px solid rgba(255,255,255,.08);
+  color: var(--text); text-align: left;
+  transition: all .15s;
+}
+.ci-task-btn:active {
+  border-color: var(--primary);
+  background: var(--primary-glow);
+}
+.ci-task-icon {
+  font-size: 1.4rem; flex-shrink: 0;
+}
+.ci-task-name {
+  font-size: .9rem; font-weight: 600;
+}
+
+/* ---- Timer Task ---- */
+.ci-timer-display {
+  text-align: center; padding: 30px 0 20px;
+}
+.ci-timer-time {
+  font-size: 3.5rem; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--primary);
+  letter-spacing: 2px;
+}
+.ci-timer-toggle {
+  margin-top: 10px;
+}
+.ci-timer-done {
+  text-align: center; font-size: 1.1rem;
+  font-weight: 700; color: var(--success);
+  margin: 16px 0;
+}
+
+/* ---- Count Task ---- */
+.ci-count-display {
+  text-align: center; padding: 20px 0 10px;
+}
+.ci-count-num {
+  font-size: 3rem; font-weight: 700; color: var(--primary);
+}
+.ci-count-target {
+  font-size: 1.2rem; color: var(--text-muted); font-weight: 500;
+}
+.ci-count-bar {
+  height: 10px; background: rgba(255,255,255,.08);
+  border-radius: 5px; overflow: hidden;
+  margin: 12px 0 16px;
+}
+.ci-count-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), var(--success));
+  border-radius: 5px;
+  transition: width .25s ease;
+}
+.ci-count-add {
+  font-size: 1.2rem; margin-top: 4px;
+}
+
+/* ---- Text Task ---- */
+.ci-text-input {
+  width: 100%; min-height: 80px; padding: 12px;
+  background: rgba(255,255,255,.04);
+  border: 2px solid rgba(255,255,255,.08);
+  border-radius: var(--radius-sm);
+  color: var(--text); font-size: .9rem;
+  font-family: var(--font); line-height: 1.5;
+  resize: vertical; outline: none;
+  transition: border-color .2s;
+  margin-bottom: 14px;
+}
+.ci-text-input:focus { border-color: var(--primary); }
+.ci-text-input::placeholder { color: rgba(255,255,255,.2); }
+
+/* ---- Task Complete Button ---- */
+.ci-task-complete {
+  margin-top: 10px;
+}
+.ci-task-complete:disabled {
+  opacity: .35; pointer-events: none;
+}
+
+/* ---- Check-in Summary ---- */
+.ci-summary {
+  margin: 18px 0;
+}
+.ci-summary-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  font-size: .88rem;
+}
+.ci-summary-row:last-child { border-bottom: none; }
+
+.ci-redeem-msg {
+  font-size: .88rem; color: var(--success);
+  font-weight: 500; margin-top: 4px;
+}
+

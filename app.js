@@ -11,6 +11,7 @@ const App = {
     this.registerSW();
     this.bindNav();
     this.showTab('today');
+    this.checkEveningCheckin();
   },
 
   registerSW() {
@@ -109,15 +110,14 @@ const App = {
 
       ${notDueHabits.length > 0 ? `
         <div class="not-due-section">
-          <h3 class="timeslot-title dim">✅ Diese Woche schon erledigt</h3>
+          <h3 class="timeslot-title dim">📅 Nicht heute geplant</h3>
           ${notDueHabits.map(h => {
-            const freq = CONFIG.FREQUENCIES.find(f => f.id === h.frequency);
-            const weekDone = Storage.getWeeklyDoneCount(h.id, today);
+            const daysLabel = this.getDaysLabel(h.days);
             return `
               <div class="habit-item done-week">
                 <span class="habit-icon">${h.icon}</span>
                 <span class="habit-name">${h.name}</span>
-                <span class="freq-badge">${weekDone}/${freq?.perWeek || '?'} ✓</span>
+                <span class="freq-badge">${daysLabel}</span>
               </div>
             `;
           }).join('')}
@@ -170,12 +170,10 @@ const App = {
 
   renderHabitItem(h, dayChecks, today) {
     const check = dayChecks[h.id];
-    const status = check?.status || 'pending'; // 'done', 'skipped', 'pending'
+    const status = check?.status || 'pending';
     const reason = check?.reason || '';
     const cat = CONFIG.CATEGORIES.find(ct => ct.id === h.category);
-    const freq = CONFIG.FREQUENCIES.find(f => f.id === h.frequency);
-    const weekDone = (h.frequency && h.frequency !== 'daily')
-      ? Storage.getWeeklyDoneCount(h.id, today) : null;
+    const daysLabel = (h.days && h.days.length < 7) ? this.getDaysLabel(h.days) : null;
 
     return `
       <div class="habit-item status-${status}" data-id="${h.id}">
@@ -191,7 +189,7 @@ const App = {
           <div class="habit-meta">
             <span class="cat-dot" style="background:${cat?.color || '#888'}"></span>
             <span>${cat?.name || ''}</span>
-            ${freq && freq.id !== 'daily' ? `<span class="freq-tag">${freq.short}${weekDone !== null ? ` (${weekDone}/${freq.perWeek})` : ''}</span>` : ''}
+            ${daysLabel ? `<span class="freq-tag">${daysLabel}</span>` : ''}
           </div>
         </div>
         ${status === 'skipped' ? `
@@ -528,7 +526,7 @@ const App = {
           ${habits.map(h => {
             const cat = CONFIG.CATEGORIES.find(ct => ct.id === h.category);
             const ts = CONFIG.TIME_SLOTS.find(t => t.id === h.timeSlot);
-            const freq = CONFIG.FREQUENCIES.find(f => f.id === h.frequency);
+            const daysLabel = h.days?.length === 7 ? 'Tägl.' : App.getDaysLabel(h.days);
             return `
               <div class="manage-habit-item">
                 <span class="manage-habit-icon">${h.icon}</span>
@@ -537,7 +535,7 @@ const App = {
                   <span class="manage-habit-tags">
                     <span style="color:${cat?.color || '#888'}">${cat?.name || ''}</span>
                     · ${ts?.icon || ''} ${ts?.name || ''}
-                    · ${freq?.short || 'Tägl.'}
+                    · ${daysLabel}
                   </span>
                 </div>
                 <button class="btn btn-sm btn-danger-outline btn-delete-habit" data-id="${h.id}">✕</button>
@@ -580,10 +578,18 @@ const App = {
           <div class="setting-group">
             <label>Frequenz</label>
             <div class="toggle-row flex-wrap">
-              ${CONFIG.FREQUENCIES.map((f, i) => `
-                <button class="btn toggle-btn freq-select ${i === 0 ? 'active' : ''}" data-freq="${f.id}">
-                  ${f.name}
+              ${CONFIG.FREQUENCY_PRESETS.map((p, i) => `
+                <button class="btn toggle-btn freq-preset ${i === 0 ? 'active' : ''}" data-preset="${p.id}">
+                  ${p.name}
                 </button>
+              `).join('')}
+            </div>
+          </div>
+          <div class="setting-group">
+            <label>Wochentage</label>
+            <div class="weekday-picker">
+              ${CONFIG.WEEKDAYS.map(wd => `
+                <button class="btn day-chip active" data-day="${wd.id}">${wd.short}</button>
               `).join('')}
             </div>
           </div>
@@ -602,6 +608,22 @@ const App = {
         <h2>⚠️ Gefahrenzone</h2>
         <button class="btn btn-danger" id="btn-reset-all">Alle Daten löschen</button>
       </div>
+
+      <!-- CLOUD SYNC -->
+      <div class="settings-card">
+        <h2>☁️ Cloud Sync</h2>
+        <p class="hint" style="margin-bottom:12px">Sync-ID teilen um Daten geräteübergreifend zu nutzen.</p>
+        <div class="setting-group">
+          <label>Sync-ID</label>
+          <input type="text" id="sync-id-input" placeholder="Sync-ID eingeben oder neu erstellen" value="${Storage.getSyncId()}">
+        </div>
+        <div class="sync-buttons">
+          <button class="btn btn-primary btn-sm" id="btn-sync-push">⬆ Push</button>
+          <button class="btn btn-outline btn-sm" id="btn-sync-pull">⬇ Pull</button>
+          <button class="btn btn-outline btn-sm" id="btn-sync-new">🆕 Neu</button>
+        </div>
+        <p class="hint" id="sync-status"></p>
+      </div>
     `;
 
     this.bindSettingsEvents(goal, c);
@@ -611,7 +633,7 @@ const App = {
     let mode = goal.mode;
     let selectedCat = CONFIG.CATEGORIES[0].id;
     let selectedTs = 'anytime';
-    let selectedFreq = 'daily';
+    let selectedDays = [0,1,2,3,4,5,6];
 
     document.getElementById('set-deficit')?.addEventListener('click', () => {
       mode = 'deficit';
@@ -655,7 +677,34 @@ const App = {
     };
     bindToggles('.cat-select', btn => selectedCat = btn.dataset.cat);
     bindToggles('.ts-select', btn => selectedTs = btn.dataset.ts);
-    bindToggles('.freq-select', btn => selectedFreq = btn.dataset.freq);
+
+    // Frequency presets
+    bindToggles('.freq-preset', btn => {
+      const preset = CONFIG.FREQUENCY_PRESETS.find(p => p.id === btn.dataset.preset);
+      if (preset) {
+        selectedDays = [...preset.days];
+        c.querySelectorAll('.day-chip').forEach(dc => {
+          dc.classList.toggle('active', selectedDays.includes(parseInt(dc.dataset.day)));
+        });
+      }
+    });
+
+    // Individual day toggles
+    c.querySelectorAll('.day-chip').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const day = parseInt(btn.dataset.day);
+        const idx = selectedDays.indexOf(day);
+        if (idx >= 0) selectedDays.splice(idx, 1);
+        else selectedDays.push(day);
+        selectedDays.sort((a, b) => a - b);
+        btn.classList.toggle('active');
+        c.querySelectorAll('.freq-preset').forEach(p => p.classList.remove('active'));
+        const match = CONFIG.FREQUENCY_PRESETS.find(p =>
+          JSON.stringify(p.days) === JSON.stringify(selectedDays)
+        );
+        if (match) c.querySelector(`.freq-preset[data-preset="${match.id}"]`)?.classList.add('active');
+      });
+    });
 
     // Add habit
     document.getElementById('btn-add-habit')?.addEventListener('click', () => {
@@ -664,7 +713,7 @@ const App = {
       if (!name) { this.showToast('Bitte Name eingeben'); return; }
       Storage.addHabit({
         id: Storage.generateId(), name, icon,
-        category: selectedCat, timeSlot: selectedTs, frequency: selectedFreq
+        category: selectedCat, timeSlot: selectedTs, days: [...selectedDays]
       });
       this.showToast(`"${name}" hinzugefügt ✓`);
       this.renderSettings();
@@ -680,6 +729,36 @@ const App = {
       if (confirm('Wirklich ALLE Daten löschen?')) {
         localStorage.clear(); this.showToast('Alle Daten gelöscht'); this.showTab('today');
       }
+    });
+
+    // Sync
+    document.getElementById('btn-sync-push')?.addEventListener('click', async () => {
+      const status = document.getElementById('sync-status');
+      status.textContent = 'Wird hochgeladen…';
+      const id = await Storage.syncPush();
+      if (id) {
+        document.getElementById('sync-id-input').value = id;
+        status.textContent = `✓ Hochgeladen! ID: ${id}`;
+      } else { status.textContent = '✗ Fehler beim Hochladen'; }
+    });
+    document.getElementById('btn-sync-pull')?.addEventListener('click', async () => {
+      const id = document.getElementById('sync-id-input').value.trim();
+      if (!id) { this.showToast('Bitte Sync-ID eingeben'); return; }
+      const status = document.getElementById('sync-status');
+      status.textContent = 'Wird heruntergeladen…';
+      const ok = await Storage.syncPull(id);
+      if (ok) { status.textContent = '✓ Daten heruntergeladen!'; this.showTab('today'); }
+      else { status.textContent = '✗ Sync-ID nicht gefunden'; }
+    });
+    document.getElementById('btn-sync-new')?.addEventListener('click', async () => {
+      Storage.setSyncId('');
+      const status = document.getElementById('sync-status');
+      status.textContent = 'Erstelle neue Sync-ID…';
+      const id = await Storage.syncPush();
+      if (id) {
+        document.getElementById('sync-id-input').value = id;
+        status.textContent = `✓ Neue Sync-ID: ${id}`;
+      } else { status.textContent = '✗ Fehler'; }
     });
   },
 
@@ -746,6 +825,314 @@ const App = {
     document.body.appendChild(t);
     requestAnimationFrame(() => t.classList.add('show'));
     setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 2000);
+  },
+
+  getDaysLabel(days) {
+    if (!days || days.length === 7) return 'Täglich';
+    if (days.length === 0) return '–';
+    return days.map(d => CONFIG.WEEKDAYS[d]?.short || '?').join(' ');
+  },
+
+  // ============================================================
+  //  EVENING CHECK-IN SYSTEM
+  // ============================================================
+  _checkin: null,
+  _checkinTimer: null,
+
+  checkEveningCheckin() {
+    const now = new Date();
+    const today = Storage.todayStr();
+    const existing = Storage.getCheckin(today);
+    if (now.getHours() >= CONFIG.CHECKIN.HOUR && (!existing || !existing.completed)) {
+      this.showCheckin();
+    }
+  },
+
+  showCheckin() {
+    const overlay = document.getElementById('checkin-overlay');
+    if (!overlay) return;
+    overlay.classList.remove('hidden');
+    this._checkin = {
+      step: 'areas',
+      areas: { body: null, personal: null, spiritual: null },
+      queue: [], queueIdx: 0, results: {}
+    };
+    this.renderCheckinStep();
+  },
+
+  closeCheckin() {
+    const overlay = document.getElementById('checkin-overlay');
+    if (overlay) overlay.classList.add('hidden');
+    if (this._checkinTimer) { clearInterval(this._checkinTimer); this._checkinTimer = null; }
+    this._checkin = null;
+    this.renderToday();
+  },
+
+  renderCheckinStep() {
+    const overlay = document.getElementById('checkin-overlay');
+    if (!overlay || !this._checkin) return;
+    const ci = this._checkin;
+    if (ci.step === 'areas') this.renderCheckinAreas(overlay);
+    else if (ci.step === 'process') this.renderCheckinProcess(overlay);
+    else if (ci.step === 'done') this.renderCheckinDone(overlay);
+  },
+
+  renderCheckinAreas(overlay) {
+    const ci = this._checkin;
+    const allSet = Object.values(ci.areas).every(v => v !== null);
+    overlay.innerHTML = `
+      <div class="checkin-container">
+        <div class="checkin-header">
+          <h2>🌙 Abend Check-in</h2>
+          <p>Wie war dein Tag in jedem Bereich?</p>
+        </div>
+        ${CONFIG.CATEGORIES.map(cat => {
+          const st = ci.areas[cat.id];
+          return `
+            <div class="checkin-area ${st ? 'ci-' + st : ''}">
+              <div class="checkin-area-top">
+                <span class="checkin-area-icon" style="background:${cat.color}">${cat.icon}</span>
+                <span class="checkin-area-name">${cat.name}</span>
+              </div>
+              <div class="checkin-area-btns">
+                <button class="btn ci-btn ci-done-btn ${st === 'done' ? 'active' : ''}" data-cat="${cat.id}" data-st="done">✓ Done</button>
+                <button class="btn ci-btn ci-miss-btn ${st === 'missed' ? 'active' : ''}" data-cat="${cat.id}" data-st="missed">✗ Not Done</button>
+              </div>
+            </div>
+          `;
+        }).join('')}
+        <button class="btn btn-primary btn-block ci-continue" ${allSet ? '' : 'disabled'}>Weiter</button>
+        <button class="btn btn-outline btn-block btn-sm ci-skip-all" style="margin-top:8px;opacity:.5">Überspringen</button>
+      </div>
+    `;
+    overlay.querySelectorAll('.ci-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        ci.areas[btn.dataset.cat] = btn.dataset.st;
+        this.renderCheckinStep();
+      });
+    });
+    overlay.querySelector('.ci-continue')?.addEventListener('click', () => {
+      const streaks = Storage.getCheckinStreaks();
+      ci.queue = [];
+      for (const cat of ['body', 'personal', 'spiritual']) {
+        if (ci.areas[cat] === 'missed') {
+          const missed = streaks[cat]?.daysMissed || 0;
+          ci.queue.push({ cat, daysMissed: missed, type: missed === 0 ? 'reflection' : 'redemption' });
+        }
+      }
+      ci.step = ci.queue.length > 0 ? 'process' : 'done';
+      ci.queueIdx = 0;
+      this.renderCheckinStep();
+    });
+    overlay.querySelector('.ci-skip-all')?.addEventListener('click', () => this.closeCheckin());
+  },
+
+  renderCheckinProcess(overlay) {
+    const ci = this._checkin;
+    const item = ci.queue[ci.queueIdx];
+    if (!item) { ci.step = 'done'; this.renderCheckinStep(); return; }
+    const catInfo = CONFIG.CATEGORIES.find(c => c.id === item.cat);
+    if (item.type === 'reflection') this.renderReflection(overlay, item, catInfo);
+    else this.renderRedemption(overlay, item, catInfo);
+  },
+
+  renderReflection(overlay, item, catInfo) {
+    const ci = this._checkin;
+    overlay.innerHTML = `
+      <div class="checkin-container">
+        <div class="checkin-header">
+          <span class="ci-step-badge">${ci.queueIdx + 1}/${ci.queue.length}</span>
+          <h2>${catInfo.icon} ${catInfo.name}</h2>
+          <p>Erster verpasster Tag – kurze Reflexion:</p>
+          <p class="ci-question">Warum hast du es nicht geschafft?</p>
+        </div>
+        <div class="ci-reasons">
+          ${CONFIG.CHECKIN.REFLECTION_REASONS.map(r => `
+            <button class="btn ci-reason-btn" data-reason="${r.id}">
+              <span>${r.icon}</span> ${r.label}
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    `;
+    overlay.querySelectorAll('.ci-reason-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        ci.results[item.cat] = { status: 'missed', reflection: btn.dataset.reason };
+        ci.queueIdx++;
+        if (ci.queueIdx >= ci.queue.length) ci.step = 'done';
+        this.renderCheckinStep();
+      });
+    });
+  },
+
+  renderRedemption(overlay, item, catInfo) {
+    const ci = this._checkin;
+    const tasks = CONFIG.CHECKIN.REDEMPTION[item.cat] || [];
+    if (!item.selectedTask) {
+      overlay.innerHTML = `
+        <div class="checkin-container">
+          <div class="checkin-header">
+            <span class="ci-step-badge">${ci.queueIdx + 1}/${ci.queue.length}</span>
+            <h2>${catInfo.icon} ${catInfo.name}</h2>
+            <p>${item.daysMissed + 1} Tage in Folge verpasst</p>
+            <p class="ci-question">Wähle eine Wiedergutmachung:</p>
+          </div>
+          <div class="ci-tasks">
+            ${tasks.map((t, i) => `
+              <button class="btn ci-task-btn" data-idx="${i}">
+                <span class="ci-task-icon">${t.icon}</span>
+                <span class="ci-task-name">${t.name}</span>
+              </button>
+            `).join('')}
+          </div>
+        </div>
+      `;
+      overlay.querySelectorAll('.ci-task-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          item.selectedTask = tasks[parseInt(btn.dataset.idx)];
+          this.renderCheckinStep();
+        });
+      });
+      return;
+    }
+    const task = item.selectedTask;
+    if (task.type === 'timer') this.renderTimerTask(overlay, item, task);
+    else if (task.type === 'count') this.renderCountTask(overlay, item, task);
+    else if (task.type === 'text') this.renderTextTask(overlay, item, task);
+    else this.renderConfirmTask(overlay, item, task);
+  },
+
+  renderTimerTask(overlay, item, task) {
+    let remaining = task.seconds;
+    let running = false;
+    const draw = () => {
+      const m = Math.floor(remaining / 60), s = remaining % 60;
+      overlay.innerHTML = `
+        <div class="checkin-container">
+          <div class="checkin-header"><h2>${task.icon} ${task.name}</h2></div>
+          <div class="ci-timer-display">
+            <span class="ci-timer-time">${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}</span>
+          </div>
+          ${remaining > 0 ? `
+            <button class="btn btn-primary btn-block ci-timer-toggle">${running ? '⏸ Pause' : '▶ Start'}</button>
+          ` : `
+            <p class="ci-timer-done">Geschafft! 🎉</p>
+            <button class="btn btn-primary btn-block ci-task-complete">Weiter</button>
+          `}
+        </div>
+      `;
+      if (remaining > 0) {
+        overlay.querySelector('.ci-timer-toggle')?.addEventListener('click', () => {
+          if (running) { running = false; clearInterval(this._checkinTimer); this._checkinTimer = null; }
+          else {
+            running = true;
+            this._checkinTimer = setInterval(() => {
+              remaining--;
+              if (remaining <= 0) { clearInterval(this._checkinTimer); this._checkinTimer = null; running = false; }
+              draw();
+            }, 1000);
+          }
+          draw();
+        });
+      } else {
+        overlay.querySelector('.ci-task-complete')?.addEventListener('click', () => this.completeRedemption(item));
+      }
+    };
+    draw();
+  },
+
+  renderCountTask(overlay, item, task) {
+    let count = 0;
+    const draw = () => {
+      overlay.innerHTML = `
+        <div class="checkin-container">
+          <div class="checkin-header"><h2>${task.icon} ${task.name}</h2></div>
+          <div class="ci-count-display">
+            <span class="ci-count-num">${count}</span>
+            <span class="ci-count-target">/ ${task.target}</span>
+          </div>
+          <div class="ci-count-bar"><div class="ci-count-fill" style="width:${(count/task.target)*100}%"></div></div>
+          ${count >= task.target ? `
+            <p class="ci-timer-done">Geschafft! 🎉</p>
+            <button class="btn btn-primary btn-block ci-task-complete">Weiter</button>
+          ` : `
+            <button class="btn btn-primary btn-block ci-count-add">+1</button>
+          `}
+        </div>
+      `;
+      overlay.querySelector('.ci-count-add')?.addEventListener('click', () => { count++; draw(); });
+      overlay.querySelector('.ci-task-complete')?.addEventListener('click', () => this.completeRedemption(item));
+    };
+    draw();
+  },
+
+  renderTextTask(overlay, item, task) {
+    overlay.innerHTML = `
+      <div class="checkin-container">
+        <div class="checkin-header"><h2>${task.icon} ${task.name}</h2><p>Schreibe einen kurzen Satz:</p></div>
+        <textarea class="ci-text-input" placeholder="Was ist morgen deine Top-Priorität?"></textarea>
+        <button class="btn btn-primary btn-block ci-task-complete" disabled>Fertig</button>
+      </div>
+    `;
+    const ta = overlay.querySelector('.ci-text-input');
+    const btn = overlay.querySelector('.ci-task-complete');
+    ta?.addEventListener('input', () => { btn.disabled = ta.value.trim().length < 2; });
+    btn?.addEventListener('click', () => this.completeRedemption(item));
+  },
+
+  renderConfirmTask(overlay, item, task) {
+    overlay.innerHTML = `
+      <div class="checkin-container">
+        <div class="checkin-header"><h2>${task.icon} ${task.name}</h2><p>Mach es jetzt – es dauert nur kurz.</p></div>
+        <button class="btn btn-primary btn-block ci-task-complete">Erledigt ✓</button>
+      </div>
+    `;
+    overlay.querySelector('.ci-task-complete')?.addEventListener('click', () => this.completeRedemption(item));
+  },
+
+  completeRedemption(item) {
+    const ci = this._checkin;
+    ci.results[item.cat] = { status: 'redeemed', task: item.selectedTask.name };
+    ci.areas[item.cat] = 'redeemed';
+    ci.queueIdx++;
+    if (ci.queueIdx >= ci.queue.length) ci.step = 'done';
+    if (this._checkinTimer) { clearInterval(this._checkinTimer); this._checkinTimer = null; }
+    this.renderCheckinStep();
+  },
+
+  renderCheckinDone(overlay) {
+    const ci = this._checkin;
+    const today = Storage.todayStr();
+    const checkinData = { completed: true, areas: {} };
+    for (const cat of ['body', 'personal', 'spiritual']) {
+      if (ci.areas[cat] === 'done') checkinData.areas[cat] = { status: 'done' };
+      else if (ci.results[cat]) checkinData.areas[cat] = ci.results[cat];
+      else if (ci.areas[cat] === 'missed') checkinData.areas[cat] = { status: 'missed' };
+    }
+    Storage.setCheckin(today, checkinData);
+    Storage.updateStreaksAfterCheckin(checkinData.areas);
+
+    const hasRedeemed = Object.values(checkinData.areas).some(a => a.status === 'redeemed');
+    const allDone = Object.values(checkinData.areas).every(a => a.status === 'done');
+
+    overlay.innerHTML = `
+      <div class="checkin-container">
+        <div class="checkin-header">
+          <h2>${allDone ? '🔥 Perfekter Tag!' : hasRedeemed ? '💪 Kurs korrigiert!' : '📝 Check-in gespeichert'}</h2>
+          ${hasRedeemed ? '<p class="ci-redeem-msg">Du hast deinen Kurs korrigiert. Weiter so!</p>' : ''}
+        </div>
+        <div class="ci-summary">
+          ${CONFIG.CATEGORIES.map(cat => {
+            const a = checkinData.areas[cat.id];
+            const sIcon = a?.status === 'done' ? '✅' : a?.status === 'redeemed' ? '🔄' : '❌';
+            const sLabel = a?.status === 'done' ? 'Erledigt' : a?.status === 'redeemed' ? 'Wiedergutgemacht' : 'Verpasst';
+            return `<div class="ci-summary-row"><span>${cat.icon} ${cat.name}</span><span>${sIcon} ${sLabel}</span></div>`;
+          }).join('')}
+        </div>
+        <button class="btn btn-primary btn-block" id="ci-close">Fertig</button>
+      </div>
+    `;
+    overlay.querySelector('#ci-close')?.addEventListener('click', () => this.closeCheckin());
   }
 };
 
