@@ -1,61 +1,45 @@
-// ============================================================
-// config.js – Zentrale Konfiguration für den Habit-Tracker
-// ============================================================
-// Setze enableSync auf true und fülle die firebase-Daten aus,
-// um Cloud-Sync via Firestore + Google Sign-In zu aktivieren.
+﻿// ============================================================
+// config.js – Zentrale Konfiguration
 // ============================================================
 
-const config = {
-  // ---- Sync-Modus (false = nur localStorage) ----
+const CONFIG = {
   enableSync: false,
+  firebase: { apiKey:'', authDomain:'', projectId:'', storageBucket:'', messagingSenderId:'', appId:'' },
 
-  // ---- Firebase-Konfiguration (nur wenn enableSync = true) ----
-  firebase: {
-    apiKey: '',
-    authDomain: '',
-    projectId: '',
-    storageBucket: '',
-    messagingSenderId: '',
-    appId: ''
-  },
-
-  // ---- Default-Habits (beim ersten Start) ----
   defaultHabits: [
-    { id: 'h1', name: 'Daily Beten',       category: 'spiritual', createdAt: Date.now(), deleted: false },
-    { id: 'h2', name: 'Gym / Sport',       category: 'body',      createdAt: Date.now(), deleted: false },
-    { id: 'h3', name: '-1000 kcal Defizit', category: 'body',     createdAt: Date.now(), deleted: false },
-    { id: 'h4', name: 'Uni / Arbeit',      category: 'personal',  createdAt: Date.now(), deleted: false },
-    { id: 'h5', name: 'Bewerbung',         category: 'personal',  createdAt: Date.now(), deleted: false }
+    { id:'h1', name:'Daily Beten',        category:'spiritual' },
+    { id:'h2', name:'Gym / Sport',        category:'body'      },
+    { id:'h3', name:'-1000 kcal Defizit', category:'body'      },
+    { id:'h4', name:'Uni / Arbeit',       category:'personal'  },
+    { id:'h5', name:'Bewerbung',          category:'personal'  }
   ],
 
-  // ---- Need-System – Decay pro Tag (wenn nichts getan) ----
-  decay: {
-    body: 3,
-    personal: 2,
-    spiritual: 2
-  },
-
-  // ---- Need-System – Gain pro Habit-Completion ----
-  gain: {
-    'h1': 10,   // Daily Beten
-    'h2': 10,   // Gym / Sport
-    'h3': 8,    // -1000 kcal
-    'h4': 8,    // Uni / Arbeit
-    'h5': 12    // Bewerbung
-  },
-
-  // ---- Max Gain pro Kategorie pro Tag ----
+  decay:  { body: 3, personal: 2, spiritual: 2 },
+  gain:   { h1:10, h2:10, h3:8, h4:8, h5:12 },
+  defaultGain: 8,
   dailyGainCap: 15,
 
-  // ---- Neglect-Schwellen ----
-  neglectThresholds: {
-    low: 59,        // ≤ 59 → LOW
-    neglected: 30   // < 30 → NEGLECTED
-  },
+  neglect: { low: 59, neglected: 30 },
+  recoveryRequired: 3,
+  maxRestDaysPerWeek: 1,
 
-  // ---- Recovery: x aufeinanderfolgende Tage nötig ----
-  recoveryDaysRequired: 3,
+  // Journal-Fragen (Tages-Reflexion)
+  journalQuestions: [
+    { id:'j1', text:'Wofür bin ich heute dankbar?',              category:'spiritual' },
+    { id:'j2', text:'Was war heute mein größter Erfolg?',        category:'personal'  },
+    { id:'j3', text:'Was hätte ich heute besser machen können?', category:'personal'  },
+    { id:'j4', text:'Wie fühlt sich mein Körper heute?',         category:'body'      },
+    { id:'j5', text:'Was ist mein wichtigstes Ziel für morgen?', category:'personal'  }
+  ],
 
-  // ---- Rest-Day: max 1 pro Woche, halbiert Decay ----
-  maxRestDaysPerWeek: 1
+  // Buddy-Customization Defaults
+  buddyDefaults: {
+    hairStyle: 'short',    // short | curly | long | buzz | wavy | braids
+    eyebrowStyle: 'normal',// normal | thick | thin
+    beard: false,
+    skinTone: 'medium',    // light | medium | tan | brown | dark
+    outfitStyle: 'casual', // casual | sport | business
+    signatureItem: 'none'  // none | glasses | cap | watch | headphones | chain
+  }
 };
+

@@ -7,86 +7,54 @@
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="apple-mobile-web-app-title" content="Habit Tracker"/>
-  <meta name="description" content="Habit Tracker PWA mit Avatar-Buddy – Body, Personal, Spiritual"/>
+  <meta name="description" content="Habit Tracker mit Chibi-Buddy Avatar"/>
   <title>Habit Tracker</title>
-
-  <!-- Manifest -->
   <link rel="manifest" href="manifest.json"/>
-
-  <!-- Icons -->
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png"/>
   <link rel="apple-touch-icon" href="icons/icon-192.png"/>
-
-  <!-- Fonts (Inter) -->
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap"/>
-
-  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
-
-  <!-- Styles -->
   <link rel="stylesheet" href="styles.css"/>
-
-  <!-- Config + Storage + Avatar (vor app.js laden) -->
   <script src="config.js"></script>
   <script src="storage.js"></script>
   <script src="avatar.js"></script>
 </head>
 <body>
-  <!-- Haupt-App Container -->
   <main id="app">
-    <!-- Ladescreen -->
     <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:80vh;gap:12px;">
-      <div style="width:40px;height:40px;border:3px solid #22c55e;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
-      <p style="color:#9ca3af;font-size:0.9rem;">Laden...</p>
+      <div style="width:36px;height:36px;border:3px solid #22c55e;border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite;"></div>
+      <p style="color:#9ca3af;font-size:.85rem;">Laden...</p>
     </div>
     <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
   </main>
 
-  <!-- Bottom Navigation -->
   <nav class="bottom-nav">
     <button class="nav-btn active" data-view="today" onclick="navigate('today')">
-      <span class="nav-icon">🏠</span>
-      <span>Today</span>
+      <span class="nav-icon">🏠</span><span>Today</span>
     </button>
     <button class="nav-btn" data-view="month" onclick="navigate('month')">
-      <span class="nav-icon">📅</span>
-      <span>Monat</span>
+      <span class="nav-icon">📅</span><span>Monat</span>
     </button>
     <button class="nav-btn" data-view="insights" onclick="navigate('insights')">
-      <span class="nav-icon">📊</span>
-      <span>Insights</span>
+      <span class="nav-icon">📊</span><span>Insights</span>
     </button>
     <button class="nav-btn" data-view="settings" onclick="navigate('settings')">
-      <span class="nav-icon">⚙️</span>
-      <span>Settings</span>
+      <span class="nav-icon">⚙️</span><span>Settings</span>
     </button>
   </nav>
 
-  <!-- App Logic -->
   <script src="app.js"></script>
-
-  <!-- Service Worker Registration -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('service-worker.js')
-          .then(reg => console.log('SW registered:', reg.scope))
-          .catch(err => console.log('SW registration failed:', err));
+          .then(r => console.log('SW:', r.scope))
+          .catch(e => console.log('SW fail:', e));
       });
     }
   </script>
-
-  <!--
-    Firebase SDKs (nur laden wenn Sync aktiviert).
-    Entkommentiere die folgenden Zeilen und setze enableSync=true in config.js:
-  -->
-  <!--
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-  -->
 </body>
 </html>
 
