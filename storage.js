@@ -153,6 +153,7 @@ const Storage = {
       goal: this.getGoal(), kcal: this.getKcalEntries(), habits: this.getHabits(),
       checks: this.getAllChecks(), journal: this.getAllJournals(),
       checkin: this.getAllCheckins(), checkinStreaks: this.getCheckinStreaks(),
+      compensations: this.getAllCompensations(),
       _syncedAt: new Date().toISOString()
     };
   },
@@ -164,6 +165,7 @@ const Storage = {
     if (data.journal)  this._set(CONFIG.STORAGE_KEYS.JOURNAL, data.journal);
     if (data.checkin)  this._set(CONFIG.STORAGE_KEYS.CHECKIN, data.checkin);
     if (data.checkinStreaks) this.setCheckinStreaks(data.checkinStreaks);
+    if (data.compensations) this._set(CONFIG.STORAGE_KEYS.COMPENSATION, data.compensations);
   },
   async syncPush() {
     const data = this.getAllData();
@@ -196,6 +198,39 @@ const Storage = {
       this.setSyncId(id);
       return true;
     } catch (e) { console.error('Sync pull failed:', e); return false; }
+  },
+
+  // ---- Compensations ----
+  getAllCompensations() { return this._get(CONFIG.STORAGE_KEYS.COMPENSATION) || {}; },
+  getCompensations(d) { return this.getAllCompensations()[d] || {}; },
+  setCompensation(d, cat, done) {
+    const all = this.getAllCompensations();
+    if (!all[d]) all[d] = {};
+    all[d][cat] = done;
+    this._set(CONFIG.STORAGE_KEYS.COMPENSATION, all);
+  },
+  getRequiredCompensations(dateStr) {
+    const habits = this.getHabits();
+    const dayChecks = this.getDayChecks(dateStr);
+    const result = {};
+    for (const cat of ['body', 'personal', 'spiritual']) {
+      const skipped = habits.filter(h =>
+        h.category === cat && this.isHabitDueToday(h, dateStr) && dayChecks[h.id]?.status === 'skipped'
+      ).length;
+      if (skipped > 0) {
+        const comp = CONFIG.COMPENSATIONS[cat];
+        result[cat] = { count: skipped, total: skipped * comp.perMiss, comp };
+      }
+    }
+    return result;
+  },
+  areCompensationsDone(dateStr) {
+    const required = this.getRequiredCompensations(dateStr);
+    const done = this.getCompensations(dateStr);
+    for (const cat in required) {
+      if (!done[cat]) return false;
+    }
+    return true;
   },
 
   // ---- Avatar ----

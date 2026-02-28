@@ -8,8 +8,10 @@ const App = {
   currentTab: 'today',
 
   init() {
+    this._viewDate = Storage.todayStr();
     this.registerSW();
     this.bindNav();
+    this.findLockedDay();
     this.showTab('today');
     this.checkEveningCheckin();
   },
@@ -47,15 +49,23 @@ const App = {
   // ============================================================
   renderToday() {
     const c = document.getElementById('today-content');
-    const today = Storage.todayStr();
+    const viewDate = this._viewDate || Storage.todayStr();
+    const actualToday = Storage.todayStr();
+    const isViewingToday = viewDate === actualToday;
     const habits = Storage.getHabits();
-    const dayChecks = Storage.getDayChecks(today);
+    const dayChecks = Storage.getDayChecks(viewDate);
     const kcalEntries = Storage.getKcalEntries();
-    const todayKcal = kcalEntries[today];
+    const todayKcal = kcalEntries[viewDate];
     const hasKcal = todayKcal !== undefined;
 
+    // Check if next day is navigable
+    const nextD = new Date(viewDate + 'T12:00:00');
+    nextD.setDate(nextD.getDate() + 1);
+    const nextDateStr = nextD.toISOString().slice(0, 10);
+    const canGoNext = nextDateStr <= actualToday && Storage.areCompensationsDone(viewDate);
+
     // Nur habits die heute fällig sind
-    const dueHabits = habits.filter(h => Storage.isHabitDueToday(h, today));
+    const dueHabits = habits.filter(h => Storage.isHabitDueToday(h, viewDate));
     const doneCount = dueHabits.filter(h => dayChecks[h.id]?.status === 'done').length;
     const skippedCount = dueHabits.filter(h => dayChecks[h.id]?.status === 'skipped').length;
     const totalDue = dueHabits.length;
@@ -78,13 +88,20 @@ const App = {
     });
 
     // Nicht-fällige Habits (diese Woche schon erledigt)
-    const notDueHabits = habits.filter(h => !Storage.isHabitDueToday(h, today));
+    const notDueHabits = habits.filter(h => !Storage.isHabitDueToday(h, viewDate));
+
+    // Compensation HTML
+    const compensationHtml = this.renderCompensationSection(viewDate);
 
     c.innerHTML = `
       <div class="quote-banner">"${quote}"</div>
 
       <div class="today-header">
-        <h2>${this.formatDateLong(today)}</h2>
+        <div class="day-nav">
+          <button class="btn btn-icon btn-sm" id="day-prev">◀</button>
+          <h2>${this.formatDateLong(viewDate)}${isViewingToday ? ' <span class="today-badge">Heute</span>' : ''}</h2>
+          <button class="btn btn-icon btn-sm ${canGoNext ? '' : 'nav-disabled'}" id="day-next">▶</button>
+        </div>
         <div class="today-progress-bar">
           <div class="today-progress-fill" style="width: ${progress * 100}%"></div>
         </div>
@@ -103,7 +120,7 @@ const App = {
         return `
           <div class="timeslot-section">
             <h3 class="timeslot-title">${ts.icon} ${ts.name} <span class="timeslot-range">${ts.range}</span></h3>
-            ${slotHabits.map(h => this.renderHabitItem(h, dayChecks, today)).join('')}
+            ${slotHabits.map(h => this.renderHabitItem(h, dayChecks, viewDate)).join('')}
           </div>
         `;
       }).join('')}
@@ -123,6 +140,8 @@ const App = {
           }).join('')}
         </div>
       ` : ''}
+
+      ${compensationHtml}
 
       <!-- KCAL -->
       <div class="kcal-section">
@@ -158,14 +177,16 @@ const App = {
       <div class="journal-section">
         <h3 class="timeslot-title" style="color: ${CONFIG.COLORS.PRIMARY}">📝 Tages-Journal</h3>
         <textarea id="journal-input" class="journal-textarea" placeholder="Wie war dein Tag? Was hast du gelernt? Wofür bist du dankbar?"
-          >${Storage.getJournal(today)}</textarea>
+          >${Storage.getJournal(viewDate)}</textarea>
         <button class="btn btn-primary btn-block btn-sm" id="btn-save-journal">Journal speichern</button>
 
-        ${this.renderRecentJournals(today)}
+        ${this.renderRecentJournals(viewDate)}
       </div>
     `;
 
-    this.bindTodayEvents(today, hasKcal, todayKcal);
+    this.bindTodayEvents(viewDate, hasKcal, todayKcal);
+    this.bindSwipe();
+    this.bindDayNav(viewDate, canGoNext);
   },
 
   renderHabitItem(h, dayChecks, today) {
@@ -288,6 +309,16 @@ const App = {
         this.renderToday();
       });
     }
+
+    // ---- Compensation buttons ----
+    c.querySelectorAll('.comp-check-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const cat = btn.dataset.cat;
+        const compensations = Storage.getCompensations(today);
+        Storage.setCompensation(today, cat, !compensations[cat]);
+        this.renderToday();
+      });
+    });
 
     // ---- Journal ----
     document.getElementById('btn-save-journal')?.addEventListener('click', () => {
@@ -772,6 +803,109 @@ const App = {
         <span class="history-val ${entries[d] < 0 ? 'deficit' : 'surplus'}">${entries[d] > 0 ? '+' : ''}${entries[d]} kcal</span>
         <button class="btn btn-sm btn-danger-outline btn-delete-entry" data-date="${d}">✕</button>
       </div>`).join('')}</div>`;
+  },
+
+  // ============================================================
+  //  DAY NAVIGATION & COMPENSATION
+  // ============================================================
+
+  findLockedDay() {
+    const today = Storage.todayStr();
+    for (let i = 1; i <= 60; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().slice(0, 10);
+      if (!Storage.areCompensationsDone(dateStr)) {
+        this._viewDate = dateStr;
+        return;
+      }
+    }
+    this._viewDate = today;
+  },
+
+  bindSwipe() {
+    const c = document.getElementById('today-content');
+    if (!c || c._swipeBound) return;
+    c._swipeBound = true;
+    let startX = 0, startY = 0, startTime = 0;
+    c.addEventListener('touchstart', (e) => {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      startTime = Date.now();
+    }, { passive: true });
+    c.addEventListener('touchend', (e) => {
+      const dx = e.changedTouches[0].clientX - startX;
+      const dy = e.changedTouches[0].clientY - startY;
+      const dt = Date.now() - startTime;
+      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 60 && dt < 500) {
+        if (dx > 0) this.navigateDay(-1);
+        else this.navigateDay(1);
+      }
+    }, { passive: true });
+  },
+
+  bindDayNav(viewDate, canGoNext) {
+    document.getElementById('day-prev')?.addEventListener('click', () => this.navigateDay(-1));
+    document.getElementById('day-next')?.addEventListener('click', () => {
+      if (!canGoNext) this.showToast('🔒 Erledige zuerst die Kompensationsaufgaben!');
+      else this.navigateDay(1);
+    });
+  },
+
+  navigateDay(offset) {
+    const d = new Date(this._viewDate + 'T12:00:00');
+    d.setDate(d.getDate() + offset);
+    const newDate = d.toISOString().slice(0, 10);
+    const today = Storage.todayStr();
+
+    if (newDate > today) {
+      this.showToast('Zukünftige Tage sind nicht verfügbar');
+      return;
+    }
+
+    if (offset > 0 && !Storage.areCompensationsDone(this._viewDate)) {
+      this.showToast('🔒 Erledige zuerst die Kompensationsaufgaben!');
+      return;
+    }
+
+    this._viewDate = newDate;
+    this.renderToday();
+  },
+
+  renderCompensationSection(dateStr) {
+    const required = Storage.getRequiredCompensations(dateStr);
+    const compensations = Storage.getCompensations(dateStr);
+    const cats = Object.keys(required);
+    if (cats.length === 0) return '';
+
+    const allDone = cats.every(cat => compensations[cat]);
+
+    return `
+      <div class="compensation-section">
+        <h3 class="timeslot-title" style="color: var(--danger)">⚡ Kompensation erforderlich</h3>
+        <p class="comp-info">Für verpasste Habits – erledige diese, um den nächsten Tag freizuschalten.</p>
+        ${cats.map(cat => {
+          const r = required[cat];
+          const done = compensations[cat] === true;
+          const catInfo = CONFIG.CATEGORIES.find(c => c.id === cat);
+          return `
+            <div class="comp-item ${done ? 'comp-done' : ''}">
+              <div class="comp-item-info">
+                <span class="comp-item-icon">${r.comp.icon}</span>
+                <div class="comp-item-text">
+                  <span class="comp-item-name">${r.count}× ${catInfo.name} verpasst</span>
+                  <span class="comp-item-task">${r.total} ${r.comp.name}</span>
+                </div>
+              </div>
+              <button class="btn comp-check-btn ${done ? 'comp-check-done' : ''}" data-cat="${cat}">
+                ${done ? '✓' : '○'}
+              </button>
+            </div>
+          `;
+        }).join('')}
+        ${allDone ? '<p class="comp-all-done">✅ Alle Kompensationen erledigt – nächster Tag freigeschaltet!</p>' : ''}
+      </div>
+    `;
   },
 
   // ============================================================

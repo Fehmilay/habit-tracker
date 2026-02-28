@@ -66,7 +66,8 @@ const CONFIG = {
     AVATAR: 'ht_avatar',
     CHECKIN: 'ht_checkin',
     CHECKIN_STREAKS: 'ht_checkin_streaks',
-    SYNC_ID: 'ht_sync_id'
+    SYNC_ID: 'ht_sync_id',
+    COMPENSATION: 'ht_compensations'
   },
 
   COLORS: {
@@ -121,6 +122,13 @@ const CONFIG = {
         { name: '2 Min. Stille',  type: 'timer',   seconds: 120, icon: '🤫' }
       ]
     }
+  },
+
+  // Kompensationsaufgaben für verpasste Habits
+  COMPENSATIONS: {
+    body:      { name: 'Liegestütze', icon: '💪', perMiss: 20 },
+    spiritual: { name: 'Min. Meditieren', icon: '🧘', perMiss: 10 },
+    personal:  { name: 'Min. aktiv reflektieren', icon: '🪞', perMiss: 10 }
   },
 
   SYNC_API: 'https://jsonblob.com/api/jsonBlob'
