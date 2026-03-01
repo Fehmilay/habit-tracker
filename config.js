@@ -67,7 +67,8 @@ const CONFIG = {
     CHECKIN: 'ht_checkin',
     CHECKIN_STREAKS: 'ht_checkin_streaks',
     SYNC_ID: 'ht_sync_id',
-    COMPENSATION: 'ht_compensations'
+    COMPENSATION: 'ht_compensations',
+    COMP_SETTINGS: 'ht_comp_settings'
   },
 
   COLORS: {
@@ -124,11 +125,43 @@ const CONFIG = {
     }
   },
 
-  // Kompensationsaufgaben für verpasste Habits
+  // Kompensationsaufgaben für verpasste Habits (Defaults)
   COMPENSATIONS: {
     body:      { name: 'Liegestütze', icon: '💪', perMiss: 20 },
     spiritual: { name: 'Min. Meditieren', icon: '🧘', perMiss: 10 },
     personal:  { name: 'Min. aktiv reflektieren', icon: '🪞', perMiss: 10 }
+  },
+
+  // Vordefinierte Kompensations-Optionen zur Auswahl
+  COMPENSATION_OPTIONS: {
+    body: [
+      { name: 'Liegestütze',      icon: '💪', perMiss: 20 },
+      { name: 'Kniebeugen',       icon: '🦵', perMiss: 20 },
+      { name: 'Burpees',          icon: '🔥', perMiss: 10 },
+      { name: 'Sit-ups',          icon: '🏋️', perMiss: 20 },
+      { name: 'Min. Seilspringen',icon: '⏱️', perMiss: 3 },
+      { name: 'Min. Joggen',      icon: '🏃', perMiss: 5 },
+      { name: 'Min. Stretching',  icon: '🧘', perMiss: 5 },
+      { name: 'Hampelmänner',     icon: '⭐', perMiss: 30 }
+    ],
+    spiritual: [
+      { name: 'Min. Meditieren',  icon: '🧘', perMiss: 10 },
+      { name: 'Min. Atmen',       icon: '🌬️', perMiss: 5 },
+      { name: 'Min. Stille',      icon: '🤫', perMiss: 5 },
+      { name: 'Seiten lesen',     icon: '📖', perMiss: 3 },
+      { name: 'Min. Gebet',       icon: '🙏', perMiss: 5 },
+      { name: 'Min. Dankbarkeit', icon: '❤️', perMiss: 5 },
+      { name: 'Min. Journaling',  icon: '📝', perMiss: 5 }
+    ],
+    personal: [
+      { name: 'Min. aktiv reflektieren', icon: '🪞', perMiss: 10 },
+      { name: 'Min. Fokus-Arbeit',       icon: '🎯', perMiss: 10 },
+      { name: 'Min. Lern-Session',       icon: '📚', perMiss: 10 },
+      { name: 'Min. Aufräumen',          icon: '🧹', perMiss: 10 },
+      { name: 'Micro-Tasks erledigen',   icon: '📌', perMiss: 3 },
+      { name: 'Min. Kreativ-Zeit',       icon: '🎨', perMiss: 10 },
+      { name: 'Sätze Tagebuch',          icon: '✏️', perMiss: 5 }
+    ]
   },
 
   SYNC_API: 'https://jsonblob.com/api/jsonBlob'

@@ -153,7 +153,7 @@ const Storage = {
       goal: this.getGoal(), kcal: this.getKcalEntries(), habits: this.getHabits(),
       checks: this.getAllChecks(), journal: this.getAllJournals(),
       checkin: this.getAllCheckins(), checkinStreaks: this.getCheckinStreaks(),
-      compensations: this.getAllCompensations(),
+      compensations: this.getAllCompensations(), compSettings: this.getCompSettings(),
       _syncedAt: new Date().toISOString()
     };
   },
@@ -166,6 +166,7 @@ const Storage = {
     if (data.checkin)  this._set(CONFIG.STORAGE_KEYS.CHECKIN, data.checkin);
     if (data.checkinStreaks) this.setCheckinStreaks(data.checkinStreaks);
     if (data.compensations) this._set(CONFIG.STORAGE_KEYS.COMPENSATION, data.compensations);
+    if (data.compSettings) this.setCompSettings(data.compSettings);
   },
   async syncPush() {
     const data = this.getAllData();
@@ -218,7 +219,7 @@ const Storage = {
         h.category === cat && this.isHabitDueToday(h, dateStr) && dayChecks[h.id]?.status === 'skipped'
       ).length;
       if (skipped > 0) {
-        const comp = CONFIG.COMPENSATIONS[cat];
+        const comp = this.getCompForCategory(cat);
         result[cat] = { count: skipped, total: skipped * comp.perMiss, comp };
       }
     }
@@ -231,6 +232,19 @@ const Storage = {
       if (!done[cat]) return false;
     }
     return true;
+  },
+
+  // ---- Compensation Settings (user-customized per category) ----
+  getCompSettings() {
+    return this._get(CONFIG.STORAGE_KEYS.COMP_SETTINGS) || {};
+  },
+  setCompSettings(settings) {
+    this._set(CONFIG.STORAGE_KEYS.COMP_SETTINGS, settings);
+  },
+  getCompForCategory(cat) {
+    const custom = this.getCompSettings();
+    if (custom[cat]) return custom[cat];
+    return CONFIG.COMPENSATIONS[cat];
   },
 
   // ---- Avatar ----

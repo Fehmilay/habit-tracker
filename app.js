@@ -403,6 +403,27 @@ const App = {
         </div>
       </div>
 
+      <!-- ZIEL-PROJEKTION KALENDER -->
+      <div class="projection-section">
+        <h3>🎯 Ziel-Projektion <span class="projection-context">Body</span></h3>
+        <div id="projection-summary"></div>
+        <div class="projection-cal-nav">
+          <button class="btn btn-icon btn-sm" id="proj-prev">◀</button>
+          <h4 id="proj-cal-title"></h4>
+          <button class="btn btn-icon btn-sm" id="proj-next">▶</button>
+        </div>
+        <div class="projection-weekdays">
+          ${['Mo','Di','Mi','Do','Fr','Sa','So'].map(d => `<span>${d}</span>`).join('')}
+        </div>
+        <div id="proj-cal-grid" class="projection-grid"></div>
+        <div class="projection-legend">
+          <span class="legend-item"><span class="legend-dot leg-proj-today"></span>Heute</span>
+          <span class="legend-item"><span class="legend-dot leg-proj-tracked"></span>kcal getrackt</span>
+          <span class="legend-item"><span class="legend-dot leg-proj-goal"></span>Ziel erreicht</span>
+          <span class="legend-item"><span class="legend-dot leg-proj-path"></span>Projektion</span>
+        </div>
+      </div>
+
       <!-- HABIT DETAILS -->
       <div class="habit-insights">
         <h3>Habits im Detail</h3>
@@ -441,6 +462,30 @@ const App = {
       this._calMonth++;
       if (this._calMonth > 11) { this._calMonth = 0; this._calYear++; }
       this.renderCalendar();
+    });
+
+    // Projektion Kalender rendern
+    const proj = this.calcProjection();
+    this.renderProjectionSummary(proj);
+    // Start projection calendar at the month of the projected goal date
+    if (proj.goalDate) {
+      this._projMonth = proj.goalDate.getMonth();
+      this._projYear = proj.goalDate.getFullYear();
+    } else {
+      this._projMonth = new Date().getMonth();
+      this._projYear = new Date().getFullYear();
+    }
+    this._projData = proj;
+    this.renderProjectionCalendar();
+    document.getElementById('proj-prev')?.addEventListener('click', () => {
+      this._projMonth--;
+      if (this._projMonth < 0) { this._projMonth = 11; this._projYear--; }
+      this.renderProjectionCalendar();
+    });
+    document.getElementById('proj-next')?.addEventListener('click', () => {
+      this._projMonth++;
+      if (this._projMonth > 11) { this._projMonth = 0; this._projYear++; }
+      this.renderProjectionCalendar();
     });
   },
 
@@ -628,6 +673,40 @@ const App = {
         </div>
       </div>
 
+      <!-- KOMPENSATIONEN ANPASSEN -->
+      <div class="settings-card">
+        <h2>⚡ Kompensationen</h2>
+        <p class="hint" style="margin-bottom:14px">Wähle pro Bereich, welche Aufgabe du als Kompensation machen möchtest. Du kannst auch eine eigene erstellen.</p>
+        ${CONFIG.CATEGORIES.map(cat => {
+          const current = Storage.getCompForCategory(cat.id);
+          const options = CONFIG.COMPENSATION_OPTIONS[cat.id] || [];
+          const isCustom = !options.some(o => o.name === current.name && o.perMiss === current.perMiss);
+          return `
+            <div class="comp-setting-cat">
+              <div class="comp-setting-header">
+                <span style="color:${cat.color}">${cat.icon} ${cat.name}</span>
+                <span class="comp-current-badge">${current.icon} ${current.perMiss} ${current.name}</span>
+              </div>
+              <div class="comp-options" data-cat="${cat.id}">
+                ${options.map((o, i) => {
+                  const sel = !isCustom && o.name === current.name && o.perMiss === current.perMiss;
+                  return `<button class="btn comp-opt-btn ${sel ? 'active' : ''}" data-cat="${cat.id}" data-idx="${i}">${o.icon} ${o.perMiss} ${o.name}</button>`;
+                }).join('')}
+                <button class="btn comp-opt-btn comp-custom-btn ${isCustom ? 'active' : ''}" data-cat="${cat.id}" data-action="custom">✏️ Eigene</button>
+              </div>
+              <div class="comp-custom-form ${isCustom ? '' : 'hidden'}" id="comp-custom-${cat.id}">
+                <div class="comp-custom-row">
+                  <input type="text" class="comp-custom-icon" id="comp-icon-${cat.id}" placeholder="Emoji" maxlength="4" value="${isCustom ? current.icon : ''}">
+                  <input type="number" class="comp-custom-amount" id="comp-amount-${cat.id}" placeholder="Anzahl" min="1" max="999" value="${isCustom ? current.perMiss : ''}">
+                  <input type="text" class="comp-custom-name" id="comp-name-${cat.id}" placeholder="z.B. Min. Yoga" value="${isCustom ? current.name : ''}">
+                </div>
+                <button class="btn btn-primary btn-sm btn-block comp-custom-save" data-cat="${cat.id}">Speichern</button>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+
       <!-- KCAL VERLAUF -->
       <div class="settings-card">
         <h2>📊 kcal Verlauf</h2>
@@ -753,6 +832,53 @@ const App = {
     // Delete kcal
     c.querySelectorAll('.btn-delete-entry').forEach(btn => {
       btn.addEventListener('click', () => { Storage.removeKcalEntry(btn.dataset.date); this.renderSettings(); });
+    });
+
+    // ---- Compensation Settings ----
+    // Predefined option buttons
+    c.querySelectorAll('.comp-opt-btn:not(.comp-custom-btn)').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const cat = btn.dataset.cat;
+        const idx = parseInt(btn.dataset.idx);
+        const option = CONFIG.COMPENSATION_OPTIONS[cat][idx];
+        const settings = Storage.getCompSettings();
+        settings[cat] = { name: option.name, icon: option.icon, perMiss: option.perMiss };
+        Storage.setCompSettings(settings);
+        // Update UI
+        c.querySelectorAll(`.comp-opt-btn[data-cat="${cat}"]`).forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const customForm = document.getElementById(`comp-custom-${cat}`);
+        if (customForm) customForm.classList.add('hidden');
+        this.showToast(`${option.icon} ${option.name} gewählt ✓`);
+        this.renderSettings();
+      });
+    });
+
+    // Custom button toggles form
+    c.querySelectorAll('.comp-custom-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const cat = btn.dataset.cat;
+        c.querySelectorAll(`.comp-opt-btn[data-cat="${cat}"]`).forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const customForm = document.getElementById(`comp-custom-${cat}`);
+        if (customForm) customForm.classList.remove('hidden');
+      });
+    });
+
+    // Save custom compensation
+    c.querySelectorAll('.comp-custom-save').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const cat = btn.dataset.cat;
+        const icon = document.getElementById(`comp-icon-${cat}`)?.value.trim() || '⭐';
+        const amount = parseInt(document.getElementById(`comp-amount-${cat}`)?.value) || 10;
+        const name = document.getElementById(`comp-name-${cat}`)?.value.trim();
+        if (!name) { this.showToast('Bitte Name eingeben'); return; }
+        const settings = Storage.getCompSettings();
+        settings[cat] = { name, icon, perMiss: amount };
+        Storage.setCompSettings(settings);
+        this.showToast(`${icon} ${amount} ${name} gespeichert ✓`);
+        this.renderSettings();
+      });
     });
 
     // Reset
@@ -906,6 +1032,139 @@ const App = {
         ${allDone ? '<p class="comp-all-done">✅ Alle Kompensationen erledigt – nächster Tag freigeschaltet!</p>' : ''}
       </div>
     `;
+  },
+
+  // ============================================================
+  //  ZIEL-PROJEKTION (Body / kcal)
+  // ============================================================
+
+  calcProjection() {
+    const goal = Storage.getGoal();
+    const kcalEntries = Storage.getKcalEntries();
+    const totalKcal = Storage.getTotalKcal();
+    const targetKcal = goal.targetKg * CONFIG.KCAL_PER_KG;
+    const remainingKcal = targetKcal - Math.abs(totalKcal);
+
+    const days = Object.keys(kcalEntries).sort();
+    const numDays = days.length;
+
+    if (numDays === 0 || remainingKcal <= 0) {
+      return {
+        hasData: numDays > 0,
+        done: remainingKcal <= 0,
+        goalDate: remainingKcal <= 0 ? new Date() : null,
+        avgDaily: 0,
+        daysRemaining: 0,
+        trackedDays: days,
+        goal
+      };
+    }
+
+    // Calculate average daily deficit (negative = deficit)
+    const avgDaily = totalKcal / numDays;
+    const avgDeficitPerDay = Math.abs(avgDaily);
+
+    if (avgDeficitPerDay === 0) {
+      return { hasData: true, done: false, goalDate: null, avgDaily: 0, daysRemaining: Infinity, trackedDays: days, goal };
+    }
+
+    const daysRemaining = Math.ceil(remainingKcal / avgDeficitPerDay);
+    const goalDate = new Date();
+    goalDate.setDate(goalDate.getDate() + daysRemaining);
+
+    return {
+      hasData: true,
+      done: false,
+      goalDate,
+      goalDateStr: goalDate.toISOString().slice(0, 10),
+      avgDaily: Math.round(avgDaily),
+      daysRemaining,
+      trackedDays: days,
+      goal
+    };
+  },
+
+  renderProjectionSummary(proj) {
+    const el = document.getElementById('projection-summary');
+    if (!el) return;
+
+    if (!proj.hasData) {
+      el.innerHTML = `<p class="proj-msg">Tracke dein kcal-Defizit, um zu sehen wann du dein Ziel erreichst.</p>`;
+      return;
+    }
+    if (proj.done) {
+      el.innerHTML = `<p class="proj-msg proj-done">🎉 Ziel erreicht! Du hast ${proj.goal.targetKg} kg geschafft!</p>`;
+      return;
+    }
+    if (!proj.goalDate) {
+      el.innerHTML = `<p class="proj-msg proj-warn">⚠️ Kein Defizit – so erreichst du dein Ziel nicht.</p>`;
+      return;
+    }
+
+    const months = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+    const gd = proj.goalDate;
+    const dateStr = `${gd.getDate()}. ${months[gd.getMonth()]} ${gd.getFullYear()}`;
+    const weeksLeft = Math.round(proj.daysRemaining / 7);
+
+    el.innerHTML = `
+      <div class="proj-info-card">
+        <div class="proj-date-big">${gd.getDate()}</div>
+        <div class="proj-date-detail">
+          <span class="proj-month">${months[gd.getMonth()]} ${gd.getFullYear()}</span>
+          <span class="proj-remaining">noch ${proj.daysRemaining} Tage (~${weeksLeft} Wochen)</span>
+        </div>
+      </div>
+      <p class="proj-avg">Bei ⌀ <strong>${Math.abs(proj.avgDaily)} kcal</strong> ${proj.avgDaily < 0 ? 'Defizit' : 'Überschuss'}/Tag erreichst du <strong>${proj.goal.targetKg} kg</strong> am <strong>${dateStr}</strong>.</p>
+      <p class="proj-hint">💡 Wenn du nichts trackst, verschiebt sich das Datum nach hinten!</p>
+    `;
+  },
+
+  renderProjectionCalendar() {
+    const grid = document.getElementById('proj-cal-grid');
+    const title = document.getElementById('proj-cal-title');
+    if (!grid || !title) return;
+
+    const y = this._projYear, m = this._projMonth;
+    const months = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+    title.textContent = `${months[m]} ${y}`;
+
+    const firstDay = new Date(y, m, 1);
+    const lastDay = new Date(y, m + 1, 0);
+    const startPad = (firstDay.getDay() + 6) % 7;
+    const daysInMonth = lastDay.getDate();
+
+    const proj = this._projData;
+    const todayStr = Storage.todayStr();
+    const kcalEntries = Storage.getKcalEntries();
+    const goalDateStr = proj?.goalDateStr || '';
+
+    let html = '';
+    for (let i = 0; i < startPad; i++) html += '<div class="proj-day empty"></div>';
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const isToday = dateStr === todayStr;
+      const isGoal = dateStr === goalDateStr;
+      const isTracked = kcalEntries[dateStr] !== undefined;
+      const isPast = dateStr < todayStr;
+      const isFuture = dateStr > todayStr;
+      const isOnPath = isFuture && dateStr <= goalDateStr;
+
+      let cls = 'proj-day';
+      if (isGoal) cls += ' proj-goal';
+      else if (isToday) cls += ' proj-today';
+      else if (isTracked && isPast) cls += ' proj-tracked';
+      else if (isOnPath) cls += ' proj-path';
+      else if (isPast && !isTracked) cls += ' proj-missed';
+      else cls += ' proj-future';
+
+      const tooltip = isGoal ? `🎯 Ziel: ${proj.goal.targetKg} kg` :
+                      isTracked ? `${kcalEntries[dateStr] > 0 ? '+' : ''}${kcalEntries[dateStr]} kcal` :
+                      isToday ? 'Heute' : '';
+
+      html += `<div class="${cls}" ${tooltip ? `title="${tooltip}"` : ''}>${isGoal ? `<span class="proj-goal-icon">🎯</span>${d}` : d}</div>`;
+    }
+    grid.innerHTML = html;
   },
 
   // ============================================================
