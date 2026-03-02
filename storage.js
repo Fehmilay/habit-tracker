@@ -325,6 +325,19 @@ const Storage = {
     return Object.values(logs).reduce((sum, s) => sum + s, 0);
   },
 
+  // ---- Start Date ----
+  getStartDate() {
+    return localStorage.getItem(CONFIG.STORAGE_KEYS.START_DATE) || '';
+  },
+  setStartDate(d) {
+    localStorage.setItem(CONFIG.STORAGE_KEYS.START_DATE, d);
+  },
+  ensureStartDate() {
+    if (!this.getStartDate()) {
+      this.setStartDate(this.todayStr());
+    }
+  },
+
   // ---- Helpers ----
   todayStr() { return new Date().toISOString().slice(0, 10); },
   generateId() { return 'h' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5); }

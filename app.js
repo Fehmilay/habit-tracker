@@ -9,6 +9,7 @@ const App = {
 
   init() {
     this._viewDate = Storage.todayStr();
+    Storage.ensureStartDate();
     this.registerSW();
     this.bindNav();
     this.findLockedDay();
@@ -71,9 +72,14 @@ const App = {
     const skippedCount = dueHabits.filter(h => dayChecks[h.id]?.status === 'skipped').length;
     const totalDue = dueHabits.length;
     const progress = totalDue > 0 ? doneCount / totalDue : 0;
+    const allDone = totalDue > 0 && doneCount === totalDue;
+    const pctClass = progress >= 1 ? 'pbar-complete' : progress >= 0.5 ? 'pbar-half' : 'pbar-low';
 
     // Avatar
     Avatar.render('avatar-container', progress, doneCount > 0);
+
+    // Update nav badge
+    this._updateNavBadge(totalDue - doneCount - skippedCount);
 
     // Quote
     const quoteIdx = new Date().getDate() % CONFIG.QUOTES.length;
@@ -103,7 +109,7 @@ const App = {
           <h2>${this.formatDateLong(viewDate)}${isViewingToday ? ' <span class="today-badge">Heute</span>' : ''}</h2>
           <button class="btn btn-icon btn-sm ${canGoNext ? '' : 'nav-disabled'}" id="day-next">▶</button>
         </div>
-        <div class="today-progress-bar">
+        <div class="today-progress-bar ${pctClass}">
           <div class="today-progress-fill" style="width: ${progress * 100}%"></div>
         </div>
         <div class="today-stats-row">
@@ -112,6 +118,7 @@ const App = {
           <span class="ts-remaining">○ ${totalDue - doneCount - skippedCount}</span>
           <span class="ts-total">${doneCount}/${totalDue} erledigt</span>
         </div>
+        ${allDone ? '<div class="all-done-banner">🏆 Alles geschafft! Du bist unaufhaltbar!</div>' : ''}
       </div>
 
       <!-- HABITS BY TIMESLOT -->
@@ -281,6 +288,12 @@ const App = {
             Storage.removeHabitStatus(today, id);
           } else {
             Storage.setHabitStatus(today, id, 'done', '');
+            // Check if all done now → confetti
+            const habits = Storage.getHabits();
+            const dc = Storage.getDayChecks(today);
+            const due = habits.filter(h => Storage.isHabitDueToday(h, today));
+            const doneNow = due.filter(h => dc[h.id]?.status === 'done' || h.id === id).length;
+            if (doneNow >= due.length && due.length > 0) this._confetti();
           }
         } else { // skip
           if (current?.status === 'skipped') {
@@ -560,9 +573,11 @@ const App = {
           const cat = CONFIG.CATEGORIES.find(ct => ct.id === h.category);
           let doneCount30 = 0, total30 = 0;
           const today = new Date();
+          const _startDate = Storage.getStartDate();
           for (let i = 0; i < 30; i++) {
             const d = new Date(today); d.setDate(d.getDate() - i);
             const key = d.toISOString().slice(0, 10);
+            if (_startDate && key < _startDate) break;
             if (Storage.isHabitDueToday(h, key)) {
               total30++;
               const dc = allChecks[key] || {};
@@ -752,11 +767,13 @@ const App = {
     const days = 14;
     const bars = [];
     const todayStr = Storage.todayStr();
+    const _startDate = Storage.getStartDate();
 
     for (let i = days - 1; i >= 0; i--) {
       const d = new Date(today);
       d.setDate(d.getDate() - i);
       const dateStr = d.toISOString().slice(0, 10);
+      if (_startDate && dateStr < _startDate) continue;
       const dayChecks = allChecks[dateStr] || {};
       const dueHabits = habits.filter(h => Storage.isHabitDueToday(h, dateStr));
       const doneCount = Object.values(dayChecks).filter(v => v.status === 'done').length;
@@ -771,7 +788,7 @@ const App = {
     }
 
     const maxPct = 100;
-    const barW = 100 / days;
+    const barW = 100 / (bars.length || 1);
 
     return `
       <div class="daily-graph-section">
@@ -983,6 +1000,17 @@ const App = {
           </div>
         </div>
         <button class="btn btn-primary btn-block" id="btn-save-goal">Ziel speichern</button>
+      </div>
+
+      <!-- STARTDATUM -->
+      <div class="settings-card">
+        <h2>📅 Startdatum</h2>
+        <p class="hint" style="margin-bottom:10px">Ab wann sollen Statistiken berechnet werden? Alles davor wird ignoriert.</p>
+        <div class="setting-group">
+          <label for="start-date-input">Startdatum</label>
+          <input type="date" id="start-date-input" value="${Storage.getStartDate()}">
+        </div>
+        <button class="btn btn-primary btn-block" id="btn-save-start-date">Startdatum speichern</button>
       </div>
 
       <!-- HABITS VERWALTEN -->
@@ -1211,6 +1239,12 @@ const App = {
       const kg = parseFloat(document.getElementById('goal-kg').value) || CONFIG.DEFAULT_GOAL_KG;
       Storage.setGoal({ targetKg: kg, mode });
       this.showToast('Ziel gespeichert ✓');
+    });
+
+    // Start date
+    document.getElementById('btn-save-start-date')?.addEventListener('click', () => {
+      const val = document.getElementById('start-date-input').value;
+      if (val) { Storage.setStartDate(val); this.showToast('Startdatum gespeichert ✓'); }
     });
 
     // Delete habits
@@ -1688,11 +1722,20 @@ const App = {
   //  HELPERS
   // ============================================================
 
-  // Consistency Score – last 30 days percentage
+  // Helper: clamp loop to start date
+  _daysSinceStart(maxDays) {
+    const start = Storage.getStartDate();
+    if (!start) return maxDays;
+    const diff = Math.floor((Date.now() - new Date(start + 'T00:00:00').getTime()) / 86400000) + 1;
+    return Math.min(maxDays, Math.max(diff, 1));
+  },
+
+  // Consistency Score – last N days (clamped to start date)
   calcConsistency(habits, allChecks, days = 30) {
+    const actualDays = this._daysSinceStart(days);
     const today = new Date();
     let totalDone = 0, totalDue = 0;
-    for (let i = 0; i < days; i++) {
+    for (let i = 0; i < actualDays; i++) {
       const d = new Date(today); d.setDate(d.getDate() - i);
       const key = d.toISOString().slice(0, 10);
       const dc = allChecks[key] || {};
@@ -1704,15 +1747,17 @@ const App = {
     return totalDue > 0 ? Math.round((totalDone / totalDue) * 100) : 0;
   },
 
-  // Consistency per week (last 4 weeks) for trend
+  // Consistency per week (last 4 weeks) for trend – clamped to start
   calcWeeklyConsistency(habits, allChecks) {
     const today = new Date();
+    const startDate = Storage.getStartDate();
     const weeks = [];
     for (let w = 0; w < 4; w++) {
       let done = 0, due = 0;
       for (let d = 0; d < 7; d++) {
         const dt = new Date(today); dt.setDate(dt.getDate() - (w * 7 + d));
         const key = dt.toISOString().slice(0, 10);
+        if (startDate && key < startDate) continue;
         const dc = allChecks[key] || {};
         const dueH = habits.filter(h => Storage.isHabitDueToday(h, key));
         due += dueH.length;
@@ -1723,15 +1768,16 @@ const App = {
     return weeks;
   },
 
-  // Weakest Link – category with worst completion
+  // Weakest Link – clamped to start
   calcWeakestLink(habits, allChecks) {
+    const actualDays = this._daysSinceStart(30);
     const catScores = {};
     CONFIG.CATEGORIES.forEach(cat => {
       const catHabits = habits.filter(h => h.category === cat.id);
       if (catHabits.length === 0) return;
       let done = 0, total = 0;
       const today = new Date();
-      for (let i = 0; i < 30; i++) {
+      for (let i = 0; i < actualDays; i++) {
         const d = new Date(today); d.setDate(d.getDate() - i);
         const key = d.toISOString().slice(0, 10);
         const dc = allChecks[key] || {};
@@ -1746,14 +1792,15 @@ const App = {
     return entries.reduce((worst, e) => e.rate < worst.rate ? e : worst, entries[0]);
   },
 
-  // Balance Score – per category completion rates
+  // Balance Score – clamped to start
   calcBalanceScores(habits, allChecks) {
+    const actualDays = this._daysSinceStart(30);
     return CONFIG.CATEGORIES.map(cat => {
       const catHabits = habits.filter(h => h.category === cat.id);
       if (catHabits.length === 0) return { cat, rate: 0, count: 0 };
       let done = 0, total = 0;
       const today = new Date();
-      for (let i = 0; i < 30; i++) {
+      for (let i = 0; i < actualDays; i++) {
         const d = new Date(today); d.setDate(d.getDate() - i);
         const key = d.toISOString().slice(0, 10);
         const dc = allChecks[key] || {};
@@ -1765,18 +1812,26 @@ const App = {
     });
   },
 
-  // Time Reality Check – planned vs actual time
+  // Time Reality Check – planned vs actual time (done habits count as fully invested)
   calcTimeReality(habits) {
     const today = Storage.todayStr();
     const timerLogs = Storage.getTimerLogs(today);
     const activeTimers = Storage.getActiveTimers();
+    const dayChecks = Storage.getDayChecks(today);
     const dueHabits = habits.filter(h => Storage.isHabitDueToday(h, today));
     let plannedMin = 0, actualSec = 0;
     dueHabits.forEach(h => {
-      plannedMin += h.duration || 30;
-      let sec = timerLogs[h.id] || 0;
-      if (activeTimers[h.id]) sec += (Date.now() - activeTimers[h.id].startedAt) / 1000;
-      actualSec += sec;
+      const dur = h.duration || 30;
+      plannedMin += dur;
+      // If habit is marked done, count full planned duration
+      if (dayChecks[h.id]?.status === 'done') {
+        actualSec += dur * 60;
+      } else {
+        // Otherwise count only timer-tracked time
+        let sec = timerLogs[h.id] || 0;
+        if (activeTimers[h.id]) sec += (Date.now() - activeTimers[h.id].startedAt) / 1000;
+        actualSec += sec;
+      }
     });
     return { plannedMin, actualMin: Math.round(actualSec / 60), dueCount: dueHabits.length };
   },
@@ -1785,9 +1840,11 @@ const App = {
     if (habits.length === 0) return 0;
     let streak = 0;
     const today = new Date();
+    const startDate = Storage.getStartDate();
     for (let i = 0; i < 365; i++) {
       const d = new Date(today); d.setDate(d.getDate() - i);
       const key = d.toISOString().slice(0, 10);
+      if (startDate && key < startDate) break;
       const dc = allChecks[key] || {};
       const doneCount = Object.values(dc).filter(v => v.status === 'done').length;
       const dueHabits = habits.filter(h => Storage.isHabitDueToday(h, key));
@@ -2371,6 +2428,44 @@ const App = {
       </div>
     `;
     overlay.querySelector('#ci-close')?.addEventListener('click', () => this.closeCheckin());
+  },
+
+  // ---- Psychological reward helpers ----
+  _updateNavBadge(remaining) {
+    let badge = document.getElementById('nav-badge-remaining');
+    const todayBtn = document.querySelector('.nav-btn[data-tab="today"]');
+    if (!todayBtn) return;
+    if (remaining > 0) {
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.id = 'nav-badge-remaining';
+        badge.className = 'nav-badge';
+        todayBtn.appendChild(badge);
+      }
+      badge.textContent = remaining;
+      todayBtn.classList.add('has-badge');
+    } else {
+      if (badge) badge.remove();
+      todayBtn.classList.remove('has-badge');
+    }
+  },
+
+  _confetti() {
+    const container = document.createElement('div');
+    container.className = 'confetti-container';
+    document.body.appendChild(container);
+    const colors = ['#00c853','#6c63ff','#ffab40','#ff5252','#fff','#a78bfa','#ff6f00'];
+    for (let i = 0; i < 80; i++) {
+      const p = document.createElement('div');
+      p.className = 'confetti-piece';
+      p.style.left = Math.random() * 100 + '%';
+      p.style.background = colors[Math.floor(Math.random() * colors.length)];
+      p.style.animationDelay = Math.random() * 0.5 + 's';
+      p.style.animationDuration = (1.5 + Math.random() * 1.5) + 's';
+      p.style.width = (4 + Math.random() * 6) + 'px';
+      p.style.height = (8 + Math.random() * 12) + 'px';
+      container.appendChild(p);
+    }
+    setTimeout(() => container.remove(), 3500);
   }
 };
-

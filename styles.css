@@ -9,18 +9,22 @@
   --primary: #6c63ff;
   --primary-glow: rgba(108, 99, 255, .25);
   --success: #00c853;
+  --success-glow: rgba(0, 200, 83, .3);
   --danger: #ff5252;
+  --danger-glow: rgba(255, 82, 82, .25);
   --warning: #ffab40;
   --bg: #0a0a0a;
-  --bg-card: #1a1a2e;
-  --bg-card-hover: #24244a;
-  --text: #e0e0e0;
-  --text-muted: #888;
-  --radius: 16px;
-  --radius-sm: 10px;
-  --nav-h: 64px;
+  --bg-card: #141425;
+  --bg-card-hover: #1e1e3a;
+  --text: #ececec;
+  --text-muted: #777;
+  --radius: 18px;
+  --radius-sm: 12px;
+  --nav-h: 68px;
   --header-h: 56px;
   --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --gold: #ffd700;
+  --gold-glow: rgba(255, 215, 0, .3);
 }
 
 html { font-size: 16px; }
@@ -44,9 +48,15 @@ body {
   border-bottom: 1px solid rgba(255,255,255,.06);
 }
 .app-header h1 {
-  font-size: 1.25rem; font-weight: 700;
-  background: linear-gradient(135deg, var(--primary), #a78bfa);
+  font-size: 1.3rem; font-weight: 800;
+  background: linear-gradient(135deg, var(--primary), #a78bfa, var(--gold));
+  background-size: 200% 200%;
+  animation: title-shimmer 4s ease-in-out infinite;
   background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; color: transparent;
+}
+@keyframes title-shimmer {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
 }
 
 /* ---- AVATAR ---- */
@@ -62,33 +72,57 @@ main { padding: 16px 16px 0; max-width: 480px; margin: 0 auto; }
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
   display: flex; justify-content: space-around; align-items: center;
   height: var(--nav-h);
-  background: rgba(10,10,10,.92);
-  backdrop-filter: blur(12px);
-  border-top: 1px solid rgba(255,255,255,.08);
+  background: rgba(10,10,10,.95);
+  backdrop-filter: blur(16px);
+  border-top: 1px solid rgba(255,255,255,.06);
+  box-shadow: 0 -4px 24px rgba(0,0,0,.4);
 }
 .nav-btn {
   background: none; border: none; color: var(--text-muted);
   display: flex; flex-direction: column; align-items: center; gap: 2px;
-  cursor: pointer; padding: 8px 16px; transition: color .2s;
+  cursor: pointer; padding: 8px 16px; transition: all .2s;
   font-family: var(--font);
+  position: relative;
 }
 .nav-btn.active { color: var(--primary); }
-.nav-icon { font-size: 1.3rem; }
+.nav-btn.active .nav-icon { filter: drop-shadow(0 0 6px rgba(108, 99, 255, .5)); }
+.nav-icon { font-size: 1.3rem; transition: filter .2s; }
 .nav-label { font-size: .65rem; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+
+/* Urgency badge on nav */
+.nav-badge {
+  position: absolute; top: 2px; right: 6px;
+  min-width: 18px; height: 18px;
+  background: var(--danger);
+  color: #fff;
+  font-size: .6rem; font-weight: 800;
+  border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 4px;
+  box-shadow: 0 0 8px var(--danger-glow);
+  animation: badge-pulse 2s ease-in-out infinite;
+}
+@keyframes badge-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
 
 /* ============================================================
    QUOTE BANNER
    ============================================================ */
 .quote-banner {
   text-align: center;
-  font-size: .82rem;
+  font-size: .84rem;
   font-style: italic;
-  color: var(--text-muted);
-  padding: 10px 16px;
-  margin-bottom: 12px;
-  background: rgba(108, 99, 255, .06);
+  color: var(--text);
+  padding: 14px 18px;
+  margin-bottom: 14px;
+  background: linear-gradient(135deg, rgba(108, 99, 255, .08), rgba(167, 139, 250, .06));
   border-radius: var(--radius-sm);
-  border-left: 3px solid var(--primary);
+  border-left: 4px solid var(--primary);
+  box-shadow: 0 2px 16px rgba(108, 99, 255, .08);
+  letter-spacing: .2px;
+  line-height: 1.5;
 }
 
 /* ============================================================
@@ -100,12 +134,45 @@ main { padding: 16px 16px 0; max-width: 480px; margin: 0 auto; }
 .today-header h2 { font-size: 1rem; color: var(--text-muted); margin-bottom: 10px; }
 
 .today-progress-bar {
-  height: 8px; background: rgba(255,255,255,.08); border-radius: 4px;
-  overflow: hidden; margin-bottom: 8px;
+  height: 12px; background: rgba(255,255,255,.06); border-radius: 6px;
+  overflow: hidden; margin-bottom: 10px;
+  position: relative;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,.3);
 }
 .today-progress-fill {
-  height: 100%; background: linear-gradient(90deg, var(--primary), var(--success));
-  border-radius: 4px; transition: width .4s ease;
+  height: 100%; border-radius: 6px; transition: width .5s cubic-bezier(.4,0,.2,1);
+  position: relative;
+}
+/* Low progress → red urgency pulse */
+.pbar-low .today-progress-fill {
+  background: linear-gradient(90deg, #ff5252, #ff8a50);
+  animation: pbar-urgency 1.5s ease-in-out infinite;
+}
+.pbar-half .today-progress-fill {
+  background: linear-gradient(90deg, #ffab40, #6c63ff, #00c853);
+  background-size: 200% 100%;
+  animation: pbar-flow 3s ease-in-out infinite;
+}
+.pbar-complete .today-progress-fill {
+  background: linear-gradient(90deg, #00c853, #4cff91, #00c853);
+  background-size: 200% 100%;
+  animation: pbar-celebrate 2s ease-in-out infinite;
+  box-shadow: 0 0 16px rgba(0, 200, 83, .4);
+}
+.pbar-complete {
+  box-shadow: 0 0 20px rgba(0, 200, 83, .2);
+}
+@keyframes pbar-urgency {
+  0%, 100% { box-shadow: 0 0 6px rgba(255, 82, 82, .3); }
+  50% { box-shadow: 0 0 18px rgba(255, 82, 82, .5); }
+}
+@keyframes pbar-flow {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+@keyframes pbar-celebrate {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
 }
 
 .today-stats-row {
@@ -140,17 +207,33 @@ main { padding: 16px 16px 0; max-width: 480px; margin: 0 auto; }
 .habit-item {
   display: flex; align-items: flex-start; gap: 10px;
   background: var(--bg-card); border-radius: var(--radius-sm);
-  padding: 12px 14px; margin-bottom: 6px;
-  transition: all .2s;
-  border: 2px solid transparent;
+  padding: 14px 16px; margin-bottom: 8px;
+  transition: all .3s cubic-bezier(.4,0,.2,1);
+  border: 2px solid rgba(255, 82, 82, .08);
   flex-wrap: wrap;
+  position: relative;
+  overflow: hidden;
+}
+/* Subtle urgency glow on undone habits */
+.habit-item.status-pending {
+  animation: habit-nudge 3s ease-in-out infinite;
+}
+@keyframes habit-nudge {
+  0%, 100% { border-color: rgba(255, 82, 82, .08); box-shadow: none; }
+  50% { border-color: rgba(255, 171, 64, .18); box-shadow: 0 0 12px rgba(255, 171, 64, .06); }
 }
 .habit-item:hover { background: var(--bg-card-hover); }
 
 /* Status states */
 .habit-item.status-done {
-  border-color: rgba(0, 200, 83, .3);
-  background: rgba(0, 200, 83, .06);
+  border-color: rgba(0, 200, 83, .35);
+  background: rgba(0, 200, 83, .08);
+  animation: habit-done-flash .4s ease-out;
+  box-shadow: 0 0 20px rgba(0, 200, 83, .1);
+}
+@keyframes habit-done-flash {
+  0% { transform: scale(1.03); box-shadow: 0 0 30px rgba(0, 200, 83, .3); }
+  100% { transform: scale(1); box-shadow: 0 0 20px rgba(0, 200, 83, .1); }
 }
 .habit-item.status-done .habit-name {
   text-decoration: line-through;
@@ -158,7 +241,7 @@ main { padding: 16px 16px 0; max-width: 480px; margin: 0 auto; }
 }
 .habit-item.status-skipped {
   border-color: rgba(255, 82, 82, .3);
-  background: rgba(255, 82, 82, .04);
+  background: rgba(255, 82, 82, .05);
 }
 .habit-item.status-skipped .habit-name {
   color: var(--text-muted);
@@ -174,22 +257,30 @@ main { padding: 16px 16px 0; max-width: 480px; margin: 0 auto; }
   display: flex; flex-direction: column; gap: 4px; flex-shrink: 0;
 }
 .hab-btn {
-  width: 32px; height: 32px; border-radius: 8px;
-  border: 2px solid rgba(255,255,255,.15);
+  width: 36px; height: 36px; border-radius: 10px;
+  border: 2px solid rgba(255,255,255,.12);
   background: transparent; color: var(--text-muted);
-  font-size: .9rem; font-weight: 700; cursor: pointer;
+  font-size: 1rem; font-weight: 700; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  transition: all .15s;
+  transition: all .2s cubic-bezier(.4,0,.2,1);
   font-family: var(--font);
 }
-.hab-btn:active { transform: scale(.9); }
+.hab-btn:active { transform: scale(.85); }
 .hab-done.active {
   background: var(--success); border-color: var(--success);
   color: #fff;
+  animation: check-pop .35s cubic-bezier(.4,0,.2,1);
+  box-shadow: 0 0 14px var(--success-glow);
+}
+@keyframes check-pop {
+  0% { transform: scale(.7); }
+  50% { transform: scale(1.25); }
+  100% { transform: scale(1); }
 }
 .hab-skip.active {
   background: var(--danger); border-color: var(--danger);
   color: #fff;
+  box-shadow: 0 0 10px var(--danger-glow);
 }
 
 /* Habit info */
@@ -2016,3 +2107,205 @@ main { padding: 16px 16px 0; max-width: 480px; margin: 0 auto; }
   opacity: .5;
 }
 
+/* ============================================================
+   PSYCHOLOGICAL MANIPULATION – Urgency, Reward, Addiction
+   ============================================================ */
+
+/* ---- ALL DONE BANNER ---- */
+.all-done-banner {
+  background: linear-gradient(135deg, rgba(0, 200, 83, .15), rgba(0, 200, 83, .06));
+  border: 2px solid rgba(0, 200, 83, .35);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--success);
+  margin-top: 14px;
+  animation: banner-glow 2s ease-in-out infinite;
+  box-shadow: 0 0 30px rgba(0, 200, 83, .15);
+  letter-spacing: .3px;
+}
+@keyframes banner-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(0, 200, 83, .1); border-color: rgba(0, 200, 83, .25); }
+  50% { box-shadow: 0 0 40px rgba(0, 200, 83, .25); border-color: rgba(0, 200, 83, .5); }
+}
+
+/* ---- CONFETTI ---- */
+.confetti-container {
+  position: fixed; inset: 0; z-index: 500;
+  pointer-events: none; overflow: hidden;
+}
+.confetti-piece {
+  position: absolute;
+  top: -20px;
+  border-radius: 2px;
+  opacity: 1;
+  animation: confetti-fall linear forwards;
+}
+@keyframes confetti-fall {
+  0% { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg) scale(.5); opacity: 0; }
+}
+
+/* ---- STATS ROW – Urgency colors ---- */
+.ts-done { color: var(--success); font-weight: 700; }
+.ts-skipped { color: var(--danger); font-weight: 700; }
+.ts-remaining { color: var(--warning); font-weight: 700; }
+.ts-total { color: var(--primary); font-weight: 700; }
+
+/* ---- DISCIPLINE HERO – More dramatic ---- */
+.discipline-hero {
+  background: linear-gradient(135deg, #12122a 0%, #1a1040 50%, #0d0d24 100%);
+  border: 1px solid rgba(108, 99, 255, .2);
+  box-shadow: 0 4px 40px rgba(108, 99, 255, .08);
+}
+.disc-big-num {
+  font-size: 3rem; font-weight: 900; line-height: 1;
+  letter-spacing: -2px;
+  text-shadow: 0 0 30px currentColor;
+}
+.disc-verdict {
+  display: block; font-size: 1.1rem; font-weight: 800;
+  margin-bottom: 6px;
+}
+
+/* ---- ALERT CARDS – More aggressive ---- */
+.insight-alert-card {
+  animation: alert-pulse-strong 2.5s ease-in-out infinite;
+  border-width: 2px;
+}
+@keyframes alert-pulse-strong {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 82, 82, .15); transform: scale(1); }
+  50% { box-shadow: 0 0 24px 0 rgba(255, 82, 82, .12); transform: scale(1.005); }
+}
+
+/* ---- INSIGHT CARDS – Depth ---- */
+.insight-card {
+  background: linear-gradient(145deg, var(--bg-card), #111122);
+  border: 1px solid rgba(255,255,255,.05);
+  box-shadow: 0 4px 24px rgba(0,0,0,.3);
+}
+
+/* ---- BALANCE BARS – Colored glow ---- */
+.balance-fill {
+  box-shadow: 0 0 8px currentColor;
+  filter: brightness(1.1);
+}
+
+/* ---- TIME REALITY – Urgency ---- */
+.tr-num {
+  text-shadow: 0 0 14px currentColor;
+}
+.tr-bar-fill {
+  box-shadow: 0 0 10px currentColor;
+}
+
+/* ---- STREAK FIRE EFFECT ---- */
+.stat-card-value {
+  font-size: 1.6rem;
+  text-shadow: 0 0 12px var(--primary);
+}
+
+/* ---- SETTINGS – Start date card ---- */
+.setting-group input[type="date"] {
+  width: 100%; padding: 10px 14px;
+  background: rgba(255,255,255,.06); border: 2px solid rgba(255,255,255,.1);
+  border-radius: var(--radius-sm); color: var(--text);
+  font-size: 1rem; font-weight: 600; outline: none;
+  transition: border-color .2s; font-family: var(--font);
+  color-scheme: dark;
+}
+.setting-group input[type="date"]:focus { border-color: var(--primary); }
+
+/* ---- TOAST – More rewarding ---- */
+.toast {
+  background: linear-gradient(135deg, var(--bg-card), #1e1e3a);
+  border: 1px solid rgba(108, 99, 255, .3);
+  box-shadow: 0 8px 40px rgba(0,0,0,.6), 0 0 20px rgba(108, 99, 255, .15);
+}
+
+/* ---- CARDS – Unified depth ---- */
+.settings-card,
+.kcal-section,
+.journal-section,
+.calendar-section,
+.habit-insights,
+.day-circle-section,
+.daily-graph-section,
+.projection-section {
+  background: linear-gradient(145deg, var(--bg-card), #111120);
+  border: 1px solid rgba(255,255,255,.04);
+  box-shadow: 0 4px 24px rgba(0,0,0,.3);
+}
+
+/* ---- HABIT ITEM – Psychological edge line ---- */
+.habit-item.status-pending::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, var(--warning), var(--danger));
+  border-radius: 3px 0 0 3px;
+  opacity: .6;
+}
+.habit-item.status-done::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--success);
+  border-radius: 3px 0 0 3px;
+}
+.habit-item.status-skipped::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--danger);
+  border-radius: 3px 0 0 3px;
+  opacity: .7;
+}
+
+/* ---- BODY – Subtle texture ---- */
+body {
+  background: radial-gradient(ellipse at 50% -20%, #0f0f25 0%, var(--bg) 70%);
+}
+
+/* ---- CALENDAR – Richer colors ---- */
+.cal-day.cal-perfect {
+  background: rgba(0, 200, 83, .35); color: #fff;
+  box-shadow: inset 0 0 8px rgba(0, 200, 83, .2);
+}
+.cal-day.cal-none {
+  background: rgba(255, 82, 82, .04); color: var(--text-muted);
+  border: 1px solid rgba(255, 82, 82, .06);
+}
+
+/* ---- COMPENSATION – More intimidating ---- */
+.compensation-section {
+  border-color: rgba(255, 82, 82, .35);
+  background: linear-gradient(145deg, rgba(255, 82, 82, .04), var(--bg-card));
+  box-shadow: 0 4px 24px rgba(255, 82, 82, .06);
+}
+
+/* ---- FOCUS MODE – Enhanced glow ---- */
+.focus-overlay {
+  background: linear-gradient(180deg, #08081a 0%, #050510 50%, #0a0a0a 100%);
+}
+.focus-ctrl-play {
+  box-shadow: 0 4px 30px rgba(108, 99, 255, .5);
+}
+
+/* ---- TIMER RUNNING – More visible ---- */
+.hab-timer-btn.running {
+  animation: timer-pulse 1.5s ease-in-out infinite;
+  box-shadow: 0 0 16px rgba(108, 99, 255, .3);
+}
+
+/* ---- DANGER ZONE – Scarier ---- */
+.danger-zone {
+  border: 2px solid rgba(255, 82, 82, .4);
+  background: linear-gradient(145deg, rgba(255, 82, 82, .04), var(--bg-card));
+}

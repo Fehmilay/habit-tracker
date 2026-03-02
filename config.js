@@ -71,7 +71,8 @@ const CONFIG = {
     COMPENSATION: 'ht_compensations',
     COMP_SETTINGS: 'ht_comp_settings',
     TIMERS: 'ht_active_timers',
-    TIMER_LOGS: 'ht_timer_logs'
+    TIMER_LOGS: 'ht_timer_logs',
+    START_DATE: 'ht_start_date'
   },
 
   COLORS: {
