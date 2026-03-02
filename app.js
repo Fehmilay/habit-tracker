@@ -309,9 +309,10 @@ const App = {
         if (Storage.isTimerRunning(id)) {
           Storage.stopTimer(id);
           this.showToast('Timer gestoppt ⏸');
+          this.closeFocusMode();
         } else {
           Storage.startTimer(id);
-          this.showToast('Timer gestartet ▶');
+          this.openFocusMode(id);
         }
         this.renderToday();
       });
@@ -1504,20 +1505,220 @@ const App = {
 
   startTimerTick() {
     setInterval(() => {
-      if (this.currentTab !== 'today') return;
-      const timers = Storage.getActiveTimers();
-      const ids = Object.keys(timers);
-      if (ids.length === 0) return;
-      ids.forEach(habitId => {
-        const el = document.querySelector(`[data-timer-id="${habitId}"]`);
-        if (el) {
-          const elapsed = Storage.getTimerElapsed(habitId);
-          const logs = Storage.getTimerLogs(this._viewDate || Storage.todayStr());
-          const logged = logs[habitId] || 0;
-          el.textContent = this.formatTimer(logged + elapsed);
-        }
-      });
+      // Update habit list timers
+      if (this.currentTab === 'today') {
+        const timers = Storage.getActiveTimers();
+        const ids = Object.keys(timers);
+        if (ids.length === 0) return;
+        ids.forEach(habitId => {
+          const el = document.querySelector(`[data-timer-id="${habitId}"]`);
+          if (el) {
+            const elapsed = Storage.getTimerElapsed(habitId);
+            const logs = Storage.getTimerLogs(this._viewDate || Storage.todayStr());
+            const logged = logs[habitId] || 0;
+            el.textContent = this.formatTimer(logged + elapsed);
+          }
+        });
+      }
+      // Update focus mode if open
+      this.tickFocusMode();
     }, 1000);
+  },
+
+  // ============================================================
+  //  FOCUS MODE (Spotify-Style Slide-Up)
+  // ============================================================
+  _focusHabitId: null,
+
+  openFocusMode(habitId) {
+    this._focusHabitId = habitId;
+    const overlay = document.getElementById('focus-overlay');
+    if (!overlay) return;
+    overlay.classList.remove('hidden');
+    // Trigger reflow for animation
+    requestAnimationFrame(() => overlay.classList.add('focus-open'));
+    this.renderFocusMode();
+  },
+
+  closeFocusMode() {
+    const overlay = document.getElementById('focus-overlay');
+    if (!overlay) return;
+    overlay.classList.remove('focus-open');
+    setTimeout(() => {
+      overlay.classList.add('hidden');
+      this._focusHabitId = null;
+    }, 350);
+  },
+
+  renderFocusMode() {
+    const overlay = document.getElementById('focus-overlay');
+    if (!overlay || !this._focusHabitId) return;
+
+    const habits = Storage.getHabits();
+    const h = habits.find(hab => hab.id === this._focusHabitId);
+    if (!h) { this.closeFocusMode(); return; }
+
+    const cat = CONFIG.CATEGORIES.find(ct => ct.id === h.category);
+    const catColor = cat?.color || '#6c63ff';
+    const duration = h.duration || 0.5;
+    const durationLabel = duration >= 1 ? `${duration}h` : `${Math.round(duration * 60)} min`;
+    const expectedSec = duration * 3600;
+
+    const isRunning = Storage.isTimerRunning(h.id);
+    const elapsed = isRunning ? Storage.getTimerElapsed(h.id) : 0;
+    const logs = Storage.getTimerLogs(Storage.todayStr());
+    const logged = logs[h.id] || 0;
+    const totalSec = logged + elapsed;
+    const progress = Math.min(totalSec / expectedSec, 1);
+    const remaining = Math.max(0, expectedSec - totalSec);
+
+    // SVG ring
+    const SZ = 240, R = 100, SW = 10;
+    const C = 2 * Math.PI * R;
+    const offset = C * (1 - progress);
+
+    // Motivational message
+    let focusMsg = 'Bleib dran – du schaffst das! 💪';
+    if (progress >= 1) focusMsg = 'Ziel erreicht! 🎉 Mega!';
+    else if (progress >= 0.75) focusMsg = 'Fast geschafft – Endspurt! 🚀';
+    else if (progress >= 0.5) focusMsg = 'Halbzeit – weiter so! 🔥';
+    else if (progress >= 0.25) focusMsg = 'Guter Start – dranbleiben! 💪';
+
+    overlay.innerHTML = `
+      <div class="focus-container">
+        <button class="focus-minimize" id="focus-min">▼</button>
+
+        <div class="focus-glow" style="background: radial-gradient(circle, ${catColor}22 0%, transparent 70%)"></div>
+
+        <div class="focus-icon-big">${h.icon}</div>
+        <h2 class="focus-title">${h.name}</h2>
+        <p class="focus-category" style="color:${catColor}">${cat?.icon || ''} ${cat?.name || ''} · ${durationLabel}</p>
+
+        <div class="focus-ring-wrap">
+          <svg width="${SZ}" height="${SZ}" viewBox="0 0 ${SZ} ${SZ}">
+            <circle cx="${SZ/2}" cy="${SZ/2}" r="${R}" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="${SW}"/>
+            <circle class="focus-ring-progress" cx="${SZ/2}" cy="${SZ/2}" r="${R}" fill="none"
+                    stroke="${catColor}" stroke-width="${SW}" stroke-linecap="round"
+                    stroke-dasharray="${C}" stroke-dashoffset="${offset}"
+                    transform="rotate(-90 ${SZ/2} ${SZ/2})"
+                    style="filter: drop-shadow(0 0 8px ${catColor}80)"/>
+            <text x="50%" y="42%" text-anchor="middle" dy=".3em" class="focus-timer-text" id="focus-time">
+              ${this.formatTimer(totalSec)}
+            </text>
+            <text x="50%" y="56%" text-anchor="middle" class="focus-remaining-text" id="focus-remaining">
+              ${remaining > 0 ? '-' + this.formatTimer(remaining) + ' übrig' : 'Fertig!'}
+            </text>
+            <text x="50%" y="67%" text-anchor="middle" class="focus-pct-text" id="focus-pct">
+              ${Math.round(progress * 100)}%
+            </text>
+          </svg>
+        </div>
+
+        <div class="focus-slider-wrap">
+          <div class="focus-slider-track">
+            <div class="focus-slider-fill" id="focus-slider-fill" style="width:${progress * 100}%; background:${catColor}"></div>
+            <div class="focus-slider-thumb" id="focus-slider-thumb" style="left:${progress * 100}%; border-color:${catColor}"></div>
+          </div>
+          <div class="focus-slider-labels">
+            <span id="focus-elapsed">${this.formatTimer(totalSec)}</span>
+            <span id="focus-total">${this.formatTimer(expectedSec)}</span>
+          </div>
+        </div>
+
+        <p class="focus-msg" id="focus-msg">${focusMsg}</p>
+
+        <div class="focus-controls">
+          <button class="focus-ctrl-btn focus-ctrl-skip" id="focus-skip" title="Abbrechen">✕</button>
+          <button class="focus-ctrl-btn focus-ctrl-play ${isRunning ? 'paused' : ''}" id="focus-toggle" title="${isRunning ? 'Pause' : 'Fortsetzen'}">
+            ${isRunning ? '⏸' : '▶'}
+          </button>
+          <button class="focus-ctrl-btn focus-ctrl-done" id="focus-done" title="Fertig">✓</button>
+        </div>
+      </div>
+    `;
+
+    this.bindFocusEvents(h);
+  },
+
+  bindFocusEvents(habit) {
+    document.getElementById('focus-min')?.addEventListener('click', () => {
+      this.closeFocusMode();
+    });
+
+    document.getElementById('focus-toggle')?.addEventListener('click', () => {
+      if (Storage.isTimerRunning(habit.id)) {
+        Storage.stopTimer(habit.id);
+      } else {
+        Storage.startTimer(habit.id);
+      }
+      this.renderFocusMode();
+      this.renderToday();
+    });
+
+    document.getElementById('focus-done')?.addEventListener('click', () => {
+      if (Storage.isTimerRunning(habit.id)) Storage.stopTimer(habit.id);
+      Storage.setHabitStatus(Storage.todayStr(), habit.id, 'done', '');
+      this.showToast(`${habit.icon} ${habit.name} erledigt ✓`);
+      this.closeFocusMode();
+      this.renderToday();
+    });
+
+    document.getElementById('focus-skip')?.addEventListener('click', () => {
+      if (Storage.isTimerRunning(habit.id)) Storage.stopTimer(habit.id);
+      this.closeFocusMode();
+      this.renderToday();
+    });
+  },
+
+  tickFocusMode() {
+    const overlay = document.getElementById('focus-overlay');
+    if (!overlay || overlay.classList.contains('hidden') || !this._focusHabitId) return;
+
+    const habits = Storage.getHabits();
+    const h = habits.find(hab => hab.id === this._focusHabitId);
+    if (!h) return;
+
+    const duration = h.duration || 0.5;
+    const expectedSec = duration * 3600;
+    const elapsed = Storage.isTimerRunning(h.id) ? Storage.getTimerElapsed(h.id) : 0;
+    const logs = Storage.getTimerLogs(Storage.todayStr());
+    const logged = logs[h.id] || 0;
+    const totalSec = logged + elapsed;
+    const progress = Math.min(totalSec / expectedSec, 1);
+    const remaining = Math.max(0, expectedSec - totalSec);
+
+    // Update text elements
+    const timeEl = document.getElementById('focus-time');
+    const remEl = document.getElementById('focus-remaining');
+    const pctEl = document.getElementById('focus-pct');
+    const sliderFill = document.getElementById('focus-slider-fill');
+    const sliderThumb = document.getElementById('focus-slider-thumb');
+    const elapsedEl = document.getElementById('focus-elapsed');
+    const msgEl = document.getElementById('focus-msg');
+
+    if (timeEl) timeEl.textContent = this.formatTimer(totalSec);
+    if (remEl) remEl.textContent = remaining > 0 ? '-' + this.formatTimer(remaining) + ' übrig' : 'Fertig!';
+    if (pctEl) pctEl.textContent = Math.round(progress * 100) + '%';
+    if (sliderFill) sliderFill.style.width = (progress * 100) + '%';
+    if (sliderThumb) sliderThumb.style.left = (progress * 100) + '%';
+    if (elapsedEl) elapsedEl.textContent = this.formatTimer(totalSec);
+
+    // Update ring
+    const ring = overlay.querySelector('.focus-ring-progress');
+    if (ring) {
+      const R = 100, C = 2 * Math.PI * R;
+      ring.setAttribute('stroke-dashoffset', C * (1 - progress));
+    }
+
+    // Update message
+    if (msgEl) {
+      let msg = 'Bleib dran – du schaffst das! 💪';
+      if (progress >= 1) msg = 'Ziel erreicht! 🎉 Mega!';
+      else if (progress >= 0.75) msg = 'Fast geschafft – Endspurt! 🚀';
+      else if (progress >= 0.5) msg = 'Halbzeit – weiter so! 🔥';
+      else if (progress >= 0.25) msg = 'Guter Start – dranbleiben! 💪';
+      msgEl.textContent = msg;
+    }
   },
 
   // ============================================================

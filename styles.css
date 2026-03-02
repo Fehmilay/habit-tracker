@@ -1237,6 +1237,263 @@ main { padding: 16px 16px 0; max-width: 480px; margin: 0 auto; }
   0%, 100% { box-shadow: 0 0 0 0 rgba(108, 99, 255, .25); }
   50% { box-shadow: 0 0 12px 3px rgba(108, 99, 255, .2); }
 }
+
+/* ============================================================
+   FOCUS MODE – Spotify-Style Slide-Up Overlay
+   ============================================================ */
+.focus-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  background: linear-gradient(180deg, #0d0d1a 0%, #0a0a0a 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(100%);
+  transition: transform .35s cubic-bezier(.32, .72, 0, 1);
+  will-change: transform;
+  overflow: hidden;
+}
+.focus-overlay.hidden {
+  display: none !important;
+}
+.focus-overlay.focus-open {
+  transform: translateY(0);
+}
+
+.focus-container {
+  width: 100%;
+  max-width: 420px;
+  padding: 24px 24px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  min-height: 100dvh;
+  justify-content: center;
+}
+
+/* Minimize chevron */
+.focus-minimize {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.4rem;
+  cursor: pointer;
+  padding: 8px 24px;
+  opacity: .5;
+  transition: opacity .2s;
+  font-family: var(--font);
+  z-index: 2;
+}
+.focus-minimize:hover { opacity: 1; }
+
+/* Background glow */
+.focus-glow {
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  top: -60px;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 0;
+  opacity: .6;
+  filter: blur(60px);
+  animation: focus-glow-breathe 4s ease-in-out infinite;
+}
+@keyframes focus-glow-breathe {
+  0%, 100% { opacity: .4; transform: translateX(-50%) scale(1); }
+  50% { opacity: .65; transform: translateX(-50%) scale(1.08); }
+}
+
+/* Icon */
+.focus-icon-big {
+  font-size: 4rem;
+  margin-bottom: 8px;
+  position: relative;
+  z-index: 1;
+  animation: focus-icon-in .5s cubic-bezier(.32, .72, 0, 1) both;
+}
+@keyframes focus-icon-in {
+  from { opacity: 0; transform: scale(.5) translateY(20px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Title */
+.focus-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+.focus-category {
+  font-size: .82rem;
+  font-weight: 600;
+  margin-bottom: 24px;
+  position: relative;
+  z-index: 1;
+}
+
+/* SVG Ring */
+.focus-ring-wrap {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 20px;
+  filter: drop-shadow(0 0 20px rgba(108, 99, 255, .1));
+}
+.focus-ring-progress {
+  transition: stroke-dashoffset 1s cubic-bezier(.4, 0, .2, 1);
+}
+.focus-timer-text {
+  fill: var(--text);
+  font-size: 2.8rem;
+  font-weight: 700;
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
+}
+.focus-remaining-text {
+  fill: var(--text-muted);
+  font-size: .82rem;
+  font-family: var(--font);
+}
+.focus-pct-text {
+  fill: var(--text-muted);
+  font-size: .72rem;
+  font-family: var(--font);
+  font-weight: 600;
+}
+
+/* Slider / Progress Bar (Spotify-style) */
+.focus-slider-wrap {
+  width: 100%;
+  max-width: 320px;
+  position: relative;
+  z-index: 1;
+  margin-bottom: 20px;
+}
+.focus-slider-track {
+  width: 100%;
+  height: 5px;
+  background: rgba(255,255,255,.1);
+  border-radius: 3px;
+  position: relative;
+  overflow: visible;
+}
+.focus-slider-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 1s linear;
+  position: relative;
+}
+.focus-slider-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  border: 3px solid var(--primary);
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  transition: left 1s linear;
+  box-shadow: 0 0 10px rgba(0,0,0,.4);
+}
+.focus-slider-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: .68rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+/* Motivational message */
+.focus-msg {
+  font-size: .88rem;
+  color: var(--text-muted);
+  text-align: center;
+  margin-bottom: 32px;
+  position: relative;
+  z-index: 1;
+  min-height: 1.3em;
+  transition: opacity .3s;
+}
+
+/* Control buttons */
+.focus-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  position: relative;
+  z-index: 1;
+}
+.focus-ctrl-btn {
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font);
+  font-weight: 700;
+  transition: all .2s;
+}
+.focus-ctrl-btn:active {
+  transform: scale(.9);
+}
+
+/* Play / Pause (large center) */
+.focus-ctrl-play {
+  width: 72px;
+  height: 72px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 1.8rem;
+  box-shadow: 0 4px 24px rgba(108, 99, 255, .4);
+}
+.focus-ctrl-play:hover {
+  filter: brightness(1.15);
+  box-shadow: 0 6px 32px rgba(108, 99, 255, .5);
+}
+.focus-ctrl-play.paused {
+  background: rgba(255,255,255,.1);
+  box-shadow: none;
+}
+
+/* Done (green) */
+.focus-ctrl-done {
+  width: 52px;
+  height: 52px;
+  background: rgba(0, 200, 83, .15);
+  border: 2px solid rgba(0, 200, 83, .4);
+  color: var(--success);
+  font-size: 1.3rem;
+}
+.focus-ctrl-done:hover {
+  background: rgba(0, 200, 83, .25);
+}
+
+/* Skip / Cancel (red) */
+.focus-ctrl-skip {
+  width: 52px;
+  height: 52px;
+  background: rgba(255, 82, 82, .1);
+  border: 2px solid rgba(255, 82, 82, .3);
+  color: var(--danger);
+  font-size: 1.3rem;
+}
+.focus-ctrl-skip:hover {
+  background: rgba(255, 82, 82, .2);
+}
 .hab-timer-display {
   font-size: .62rem;
   font-weight: 600;
