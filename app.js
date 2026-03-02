@@ -428,6 +428,9 @@ const App = {
         <div class="stat-card"><span class="stat-card-value">${avgKcal > 0 ? '+' : ''}${avgKcal}</span><span class="stat-card-label">⌀ kcal/Tag</span></div>
       </div>
 
+      <!-- DAILY PROGRESS GRAPH -->
+      ${this.renderDailyProgressGraph(habits, allChecks)}
+
       <!-- KALENDER -->
       <div class="calendar-section">
         <div class="calendar-nav">
@@ -611,6 +614,68 @@ const App = {
         <text x="50%" y="45%" text-anchor="middle" dy=".3em" class="progress-text">${percentText}%</text>
         <text x="50%" y="60%" text-anchor="middle" class="progress-sub">${kgDone} / ${goal.targetKg} kg</text>
       </svg>`;
+  },
+
+  renderDailyProgressGraph(habits, allChecks) {
+    const today = new Date();
+    const days = 14;
+    const bars = [];
+    const todayStr = Storage.todayStr();
+
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().slice(0, 10);
+      const dayChecks = allChecks[dateStr] || {};
+      const dueHabits = habits.filter(h => Storage.isHabitDueToday(h, dateStr));
+      const doneCount = Object.values(dayChecks).filter(v => v.status === 'done').length;
+      const skippedCount = Object.values(dayChecks).filter(v => v.status === 'skipped').length;
+      const total = dueHabits.length || 1;
+      const pct = Math.round((doneCount / total) * 100);
+      const skipPct = Math.round((skippedCount / total) * 100);
+      const label = d.getDate() + '.' + (d.getMonth() + 1);
+      const dayName = ['So','Mo','Di','Mi','Do','Fr','Sa'][d.getDay()];
+      const isToday = dateStr === todayStr;
+      bars.push({ dateStr, label, dayName, pct, skipPct, doneCount, skippedCount, total, isToday });
+    }
+
+    const maxPct = 100;
+    const barW = 100 / days;
+
+    return `
+      <div class="daily-graph-section">
+        <h3>📈 Daily Progress <span class="dg-range">Letzte ${days} Tage</span></h3>
+        <div class="dg-chart">
+          <div class="dg-y-axis">
+            <span>100%</span><span>75%</span><span>50%</span><span>25%</span><span>0%</span>
+          </div>
+          <div class="dg-bars-area">
+            <div class="dg-grid-lines">
+              <div class="dg-grid-line" style="bottom:25%"></div>
+              <div class="dg-grid-line" style="bottom:50%"></div>
+              <div class="dg-grid-line" style="bottom:75%"></div>
+              <div class="dg-grid-line" style="bottom:100%"></div>
+            </div>
+            <div class="dg-bars">
+              ${bars.map(b => `
+                <div class="dg-bar-col ${b.isToday ? 'dg-today' : ''}" title="${b.label}: ${b.doneCount}/${b.total} ✓  ${b.skippedCount}✗">
+                  <div class="dg-bar-stack">
+                    <div class="dg-bar-skip" style="height:${b.skipPct}%"></div>
+                    <div class="dg-bar-done" style="height:${b.pct}%"></div>
+                  </div>
+                  <span class="dg-bar-label">${b.dayName}</span>
+                  <span class="dg-bar-date">${b.label}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+        <div class="dg-legend">
+          <span class="legend-item"><span class="legend-dot dg-leg-done"></span>Erledigt</span>
+          <span class="legend-item"><span class="legend-dot dg-leg-skip"></span>Verpasst</span>
+        </div>
+      </div>
+    `;
   },
 
   renderDayTimeCircle(habits) {
