@@ -234,7 +234,7 @@ const Storage = {
         h.category === cat && this.isHabitDueToday(h, dateStr) && dayChecks[h.id]?.status === 'skipped'
       ).length;
       if (skipped > 0) {
-        const comp = this.getCompForCategory(cat);
+        const comp = this.getCompForCategory(cat, dateStr);
         result[cat] = { count: skipped, total: skipped * comp.perMiss, comp };
       }
     }
@@ -256,9 +256,21 @@ const Storage = {
   setCompSettings(settings) {
     this._set(CONFIG.STORAGE_KEYS.COMP_SETTINGS, settings);
   },
-  getCompForCategory(cat) {
+  getCompForCategory(cat, dateStr) {
     const custom = this.getCompSettings();
-    if (custom[cat]) return custom[cat];
+    if (custom[cat]) {
+      if (custom[cat].random) {
+        const pool = CONFIG.COMPENSATION_OPTIONS[cat] || [];
+        if (pool.length > 0) {
+          const d = dateStr || this.todayStr();
+          let hash = 0;
+          for (let i = 0; i < d.length; i++) hash = ((hash << 5) - hash + d.charCodeAt(i) + cat.charCodeAt(0)) | 0;
+          const idx = Math.abs(hash) % pool.length;
+          return pool[idx];
+        }
+      }
+      return custom[cat];
+    }
     return CONFIG.COMPENSATIONS[cat];
   },
 

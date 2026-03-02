@@ -798,8 +798,8 @@ const App = {
             <!-- Inner: Habits -->
             ${innerArcs}
             <!-- Center text -->
-            <text x="${CX}" y="${CY - 8}" text-anchor="middle" class="dc-center-big">${actualSpentH.toFixed(1)}h</text>
-            <text x="${CX}" y="${CY + 12}" text-anchor="middle" class="dc-center-sub">verbraucht</text>
+            <text x="${CX}" y="${CY - 8}" text-anchor="middle" class="dc-center-big">${freeH.toFixed(1)}h</text>
+            <text x="${CX}" y="${CY + 12}" text-anchor="middle" class="dc-center-sub">frei</text>
           </svg>
         </div>
 
@@ -999,14 +999,15 @@ const App = {
             <div class="comp-setting-cat">
               <div class="comp-setting-header">
                 <span style="color:${cat.color}">${cat.icon} ${cat.name}</span>
-                <span class="comp-current-badge">${current.icon} ${current.perMiss} ${current.name}</span>
+                <span class="comp-current-badge">${current.random ? '🎲 Zufällig' : `${current.icon} ${current.perMiss} ${current.name}`}</span>
               </div>
               <div class="comp-options" data-cat="${cat.id}">
                 ${options.map((o, i) => {
-                  const sel = !isCustom && o.name === current.name && o.perMiss === current.perMiss;
+                  const sel = !isCustom && !current.random && o.name === current.name && o.perMiss === current.perMiss;
                   return `<button class="btn comp-opt-btn ${sel ? 'active' : ''}" data-cat="${cat.id}" data-idx="${i}">${o.icon} ${o.perMiss} ${o.name}</button>`;
                 }).join('')}
-                <button class="btn comp-opt-btn comp-custom-btn ${isCustom ? 'active' : ''}" data-cat="${cat.id}" data-action="custom">✏️ Eigene</button>
+                <button class="btn comp-opt-btn comp-random-btn ${current.random ? 'active' : ''}" data-cat="${cat.id}" data-action="random">🎲 Zufällig</button>
+                <button class="btn comp-opt-btn comp-custom-btn ${isCustom && !current.random ? 'active' : ''}" data-cat="${cat.id}" data-action="custom">✏️ Eigene</button>
               </div>
               <div class="comp-custom-form ${isCustom ? '' : 'hidden'}" id="comp-custom-${cat.id}">
                 <div class="comp-custom-row">
@@ -1207,7 +1208,7 @@ const App = {
 
     // ---- Compensation Settings ----
     // Predefined option buttons
-    c.querySelectorAll('.comp-opt-btn:not(.comp-custom-btn)').forEach(btn => {
+    c.querySelectorAll('.comp-opt-btn:not(.comp-custom-btn):not(.comp-random-btn)').forEach(btn => {
       btn.addEventListener('click', () => {
         const cat = btn.dataset.cat;
         const idx = parseInt(btn.dataset.idx);
@@ -1215,12 +1216,27 @@ const App = {
         const settings = Storage.getCompSettings();
         settings[cat] = { name: option.name, icon: option.icon, perMiss: option.perMiss };
         Storage.setCompSettings(settings);
-        // Update UI
         c.querySelectorAll(`.comp-opt-btn[data-cat="${cat}"]`).forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         const customForm = document.getElementById(`comp-custom-${cat}`);
         if (customForm) customForm.classList.add('hidden');
         this.showToast(`${option.icon} ${option.name} gewählt ✓`);
+        this.renderSettings();
+      });
+    });
+
+    // Random button
+    c.querySelectorAll('.comp-random-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const cat = btn.dataset.cat;
+        const settings = Storage.getCompSettings();
+        settings[cat] = { random: true };
+        Storage.setCompSettings(settings);
+        c.querySelectorAll(`.comp-opt-btn[data-cat="${cat}"]`).forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const customForm = document.getElementById(`comp-custom-${cat}`);
+        if (customForm) customForm.classList.add('hidden');
+        this.showToast('🎲 Zufällig gewählt ✓');
         this.renderSettings();
       });
     });
