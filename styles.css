@@ -1200,3 +1200,189 @@ main { padding: 16px 16px 0; max-width: 480px; margin: 0 auto; }
   border-radius: var(--radius-sm);
 }
 
+/* ============================================================
+   HABIT TIMER BUTTON & DISPLAY
+   ============================================================ */
+.habit-timer-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  min-width: 52px;
+}
+.hab-timer-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.04);
+  color: var(--text-muted);
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .2s;
+  font-family: var(--font);
+}
+.hab-timer-btn:active { transform: scale(.9); }
+.hab-timer-btn.running {
+  background: rgba(108, 99, 255, .2);
+  border-color: var(--primary);
+  color: var(--primary);
+  animation: timer-pulse 2s ease-in-out infinite;
+}
+@keyframes timer-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(108, 99, 255, .25); }
+  50% { box-shadow: 0 0 12px 3px rgba(108, 99, 255, .2); }
+}
+.hab-timer-display {
+  font-size: .62rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .3px;
+  white-space: nowrap;
+}
+.hab-timer-display.ticking {
+  color: var(--primary);
+}
+
+/* Duration tag in habit meta */
+.duration-tag {
+  background: rgba(108, 99, 255, .12);
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: .62rem;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+/* Timer progress bar inside habit */
+.habit-timer-bar {
+  height: 3px;
+  background: rgba(255,255,255,.06);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 5px;
+}
+.habit-timer-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width .5s ease;
+}
+
+/* ============================================================
+   DAY TIME CIRCLE (Insights)
+   ============================================================ */
+.day-circle-section {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 16px;
+  text-align: center;
+}
+.day-circle-section h2 {
+  font-size: 1.1rem;
+  margin-bottom: 6px;
+  color: var(--text);
+}
+.dc-subtitle {
+  font-size: .78rem;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+.dc-circle-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+  filter: drop-shadow(0 0 12px rgba(108, 99, 255, .15));
+}
+.dc-center-big {
+  fill: var(--text);
+  font-size: 1.8rem;
+  font-weight: 700;
+  font-family: var(--font);
+}
+.dc-center-sub {
+  fill: var(--text-muted);
+  font-size: .75rem;
+  font-family: var(--font);
+}
+
+/* Slot chips row */
+.dc-slots-row {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.dc-slot-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 20px;
+  padding: 6px 12px;
+  font-size: .7rem;
+}
+.dc-slot-name {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.dc-slot-time {
+  color: var(--text);
+  font-weight: 700;
+}
+
+/* Habit list breakdown */
+.dc-habit-list {
+  text-align: left;
+}
+.dc-habit-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255,255,255,.04);
+}
+.dc-habit-row:last-child { border-bottom: none; }
+.dc-habit-row.dc-free { opacity: .5; }
+.dc-habit-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.dc-habit-icon {
+  font-size: .9rem;
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.dc-habit-name {
+  flex: 1;
+  font-size: .78rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dc-habit-dur {
+  font-size: .72rem;
+  font-weight: 700;
+  color: var(--primary);
+  min-width: 36px;
+  text-align: right;
+}
+.dc-habit-pct {
+  font-size: .65rem;
+  color: var(--text-muted);
+  min-width: 36px;
+  text-align: right;
+}
+

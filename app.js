@@ -14,6 +14,7 @@ const App = {
     this.findLockedDay();
     this.showTab('today');
     this.checkEveningCheckin();
+    this.startTimerTick();
   },
 
   registerSW() {
@@ -195,6 +196,17 @@ const App = {
     const reason = check?.reason || '';
     const cat = CONFIG.CATEGORIES.find(ct => ct.id === h.category);
     const daysLabel = (h.days && h.days.length < 7) ? this.getDaysLabel(h.days) : null;
+    const duration = h.duration || 0.5;
+    const durationLabel = duration >= 1 ? `${duration}h` : `${Math.round(duration * 60)}min`;
+
+    // Timer state
+    const isTimerRunning = Storage.isTimerRunning(h.id);
+    const timerElapsed = isTimerRunning ? Storage.getTimerElapsed(h.id) : 0;
+    const timerLogs = Storage.getTimerLogs(today);
+    const loggedTime = timerLogs[h.id] || 0;
+    const totalTime = loggedTime + timerElapsed;
+    const expectedSec = duration * 3600;
+    const timerProgress = Math.min(totalTime / expectedSec, 1);
 
     return `
       <div class="habit-item status-${status}" data-id="${h.id}">
@@ -211,7 +223,21 @@ const App = {
             <span class="cat-dot" style="background:${cat?.color || '#888'}"></span>
             <span>${cat?.name || ''}</span>
             ${daysLabel ? `<span class="freq-tag">${daysLabel}</span>` : ''}
+            <span class="duration-tag">⏱ ${durationLabel}</span>
           </div>
+          ${totalTime > 0 || isTimerRunning ? `
+            <div class="habit-timer-bar">
+              <div class="habit-timer-fill" style="width:${timerProgress * 100}%;background:${cat?.color || 'var(--primary)'}"></div>
+            </div>
+          ` : ''}
+        </div>
+        <div class="habit-timer-col">
+          <button class="hab-timer-btn ${isTimerRunning ? 'running' : ''}" data-id="${h.id}" title="${isTimerRunning ? 'Timer stoppen' : 'Timer starten'}">
+            ${isTimerRunning ? '⏸' : '▶'}
+          </button>
+          <span class="hab-timer-display ${isTimerRunning ? 'ticking' : ''}" data-timer-id="${h.id}">
+            ${this.formatTimer(totalTime)}
+          </span>
         </div>
         ${status === 'skipped' ? `
           <div class="skip-reason-area">
@@ -273,6 +299,22 @@ const App = {
         Storage.setHabitStatus(today, inp.dataset.id, 'skipped', inp.value.trim());
       });
       inp.addEventListener('click', e => e.stopPropagation());
+    });
+
+    // ---- Timer Start/Stop ----
+    c.querySelectorAll('.hab-timer-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        if (Storage.isTimerRunning(id)) {
+          Storage.stopTimer(id);
+          this.showToast('Timer gestoppt ⏸');
+        } else {
+          Storage.startTimer(id);
+          this.showToast('Timer gestartet ▶');
+        }
+        this.renderToday();
+      });
     });
 
     // ---- kcal ----
@@ -374,6 +416,9 @@ const App = {
           · noch ${kgRemaining} kg
         </p>
       </div>
+
+      <!-- TAGESZEIT-KREIS (16h) -->
+      ${this.renderDayTimeCircle(habits)}
 
       <!-- STATS -->
       <div class="insights-stats">
@@ -568,6 +613,155 @@ const App = {
       </svg>`;
   },
 
+  renderDayTimeCircle(habits) {
+    const totalH = CONFIG.ACTIVE_HOURS; // 16h
+    const today = Storage.todayStr();
+    const dueHabits = habits.filter(h => Storage.isHabitDueToday(h, today));
+
+    // Group by time slot for segment coloring
+    const slotHours = { morning: 0, afternoon: 0, evening: 0, anytime: 0 };
+    const habitSegments = [];
+
+    dueHabits.forEach(h => {
+      const dur = h.duration || 0.5;
+      const slot = h.timeSlot || 'anytime';
+      slotHours[slot] = (slotHours[slot] || 0) + dur;
+      const cat = CONFIG.CATEGORIES.find(ct => ct.id === h.category);
+      habitSegments.push({
+        name: h.name,
+        icon: h.icon,
+        duration: dur,
+        color: cat?.color || '#888',
+        slot: slot
+      });
+    });
+
+    const usedH = dueHabits.reduce((sum, h) => sum + (h.duration || 0.5), 0);
+    const freeH = Math.max(0, totalH - usedH);
+
+    // Time slot backgrounds (for the outer ring)
+    // Morning: 6-10 = 4h, Afternoon: 10-18 = 8h, Evening: 18-22 = 4h → total 16h
+    const slotDefs = [
+      { name: 'Morgens', hours: 4, color: 'rgba(255,171,64,.2)', icon: '🌅', range: '06-10' },
+      { name: 'Tagsüber', hours: 8, color: 'rgba(108,99,255,.15)', icon: '☀️', range: '10-18' },
+      { name: 'Abends', hours: 4, color: 'rgba(0,200,83,.15)', icon: '🌙', range: '18-22' }
+    ];
+
+    // SVG donut chart
+    const SZ = 240, CX = SZ/2, CY = SZ/2, R = 85, SW = 24, R2 = 60, SW2 = 16;
+    const C1 = 2 * Math.PI * R;
+    const C2 = 2 * Math.PI * R2;
+
+    // Outer ring: time slots
+    let outerArcs = '';
+    let outerOffset = 0;
+    slotDefs.forEach(slot => {
+      const frac = slot.hours / totalH;
+      const dashLen = frac * C1;
+      const gap = C1 - dashLen;
+      outerArcs += `<circle cx="${CX}" cy="${CY}" r="${R}" fill="none"
+        stroke="${slot.color}" stroke-width="${SW}"
+        stroke-dasharray="${dashLen} ${gap}"
+        stroke-dashoffset="${-outerOffset}"
+        transform="rotate(-90 ${CX} ${CY})"/>`;
+      outerOffset += dashLen;
+    });
+
+    // Inner ring: habit segments
+    let innerArcs = '';
+    let innerOffset = 0;
+    habitSegments.forEach(seg => {
+      const frac = seg.duration / totalH;
+      const dashLen = frac * C2;
+      const gap = C2 - dashLen;
+      innerArcs += `<circle cx="${CX}" cy="${CY}" r="${R2}" fill="none"
+        stroke="${seg.color}" stroke-width="${SW2}" opacity="0.85"
+        stroke-dasharray="${dashLen} ${gap}"
+        stroke-dashoffset="${-innerOffset}"
+        transform="rotate(-90 ${CX} ${CY})"/>`;
+      innerOffset += dashLen;
+    });
+    // Free time segment
+    if (freeH > 0) {
+      const frac = freeH / totalH;
+      const dashLen = frac * C2;
+      const gap = C2 - dashLen;
+      innerArcs += `<circle cx="${CX}" cy="${CY}" r="${R2}" fill="none"
+        stroke="rgba(255,255,255,.06)" stroke-width="${SW2}"
+        stroke-dasharray="${dashLen} ${gap}"
+        stroke-dashoffset="${-innerOffset}"
+        transform="rotate(-90 ${CX} ${CY})"/>`;
+    }
+
+    // Timer logs for today – actual time spent
+    const timerLogs = Storage.getTimerLogs(today);
+    const activeTimers = Storage.getActiveTimers();
+    let actualSpentH = 0;
+    dueHabits.forEach(h => {
+      let sec = timerLogs[h.id] || 0;
+      if (activeTimers[h.id]) sec += (Date.now() - activeTimers[h.id].startedAt) / 1000;
+      actualSpentH += sec / 3600;
+    });
+    const actualFreeH = Math.max(0, totalH - actualSpentH).toFixed(1);
+
+    // Habit list for the circle section
+    const habitListHtml = habitSegments.map(seg => {
+      const durLabel = seg.duration >= 1 ? `${seg.duration}h` : `${Math.round(seg.duration * 60)}min`;
+      const pct = ((seg.duration / totalH) * 100).toFixed(1);
+      return `<div class="dc-habit-row">
+        <span class="dc-habit-dot" style="background:${seg.color}"></span>
+        <span class="dc-habit-icon">${seg.icon}</span>
+        <span class="dc-habit-name">${seg.name}</span>
+        <span class="dc-habit-dur">${durLabel}</span>
+        <span class="dc-habit-pct">${pct}%</span>
+      </div>`;
+    }).join('');
+
+    return `
+      <div class="day-circle-section">
+        <h2>⏱ Tageszeit-Übersicht</h2>
+        <p class="dc-subtitle">${totalH} Wachstunden · ${usedH.toFixed(1)}h geplant · ${freeH.toFixed(1)}h frei</p>
+
+        <div class="dc-circle-wrap">
+          <svg width="${SZ}" height="${SZ}" viewBox="0 0 ${SZ} ${SZ}">
+            <!-- Background -->
+            <circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="rgba(255,255,255,.04)" stroke-width="${SW}"/>
+            <circle cx="${CX}" cy="${CY}" r="${R2}" fill="none" stroke="rgba(255,255,255,.04)" stroke-width="${SW2}"/>
+            <!-- Outer: Time Slots -->
+            ${outerArcs}
+            <!-- Inner: Habits -->
+            ${innerArcs}
+            <!-- Center text -->
+            <text x="${CX}" y="${CY - 8}" text-anchor="middle" class="dc-center-big">${actualFreeH}h</text>
+            <text x="${CX}" y="${CY + 12}" text-anchor="middle" class="dc-center-sub">übrig</text>
+          </svg>
+        </div>
+
+        <div class="dc-slots-row">
+          ${slotDefs.map(s => {
+            const used = slotHours[s.name === 'Morgens' ? 'morning' : s.name === 'Tagsüber' ? 'afternoon' : 'evening'] || 0;
+            return `<div class="dc-slot-chip">
+              <span>${s.icon}</span>
+              <span class="dc-slot-name">${s.name}</span>
+              <span class="dc-slot-time">${used.toFixed(1)}h / ${s.hours}h</span>
+            </div>`;
+          }).join('')}
+        </div>
+
+        <div class="dc-habit-list">
+          ${habitListHtml}
+          ${freeH > 0 ? `<div class="dc-habit-row dc-free">
+            <span class="dc-habit-dot" style="background:rgba(255,255,255,.1)"></span>
+            <span class="dc-habit-icon">⏳</span>
+            <span class="dc-habit-name">Freie Zeit</span>
+            <span class="dc-habit-dur">${freeH.toFixed(1)}h</span>
+            <span class="dc-habit-pct">${((freeH / totalH) * 100).toFixed(1)}%</span>
+          </div>` : ''}
+        </div>
+      </div>
+    `;
+  },
+
   // ============================================================
   //  SETTINGS TAB
   // ============================================================
@@ -603,6 +797,7 @@ const App = {
             const cat = CONFIG.CATEGORIES.find(ct => ct.id === h.category);
             const ts = CONFIG.TIME_SLOTS.find(t => t.id === h.timeSlot);
             const daysLabel = h.days?.length === 7 ? 'Tägl.' : App.getDaysLabel(h.days);
+            const durLabel = h.duration ? (h.duration >= 1 ? `${h.duration}h` : `${Math.round(h.duration * 60)}min`) : '30min';
             return `
               <div class="manage-habit-item">
                 <span class="manage-habit-icon">${h.icon}</span>
@@ -612,6 +807,7 @@ const App = {
                     <span style="color:${cat?.color || '#888'}">${cat?.name || ''}</span>
                     · ${ts?.icon || ''} ${ts?.name || ''}
                     · ${daysLabel}
+                    · ⏱ ${durLabel}
                   </span>
                 </div>
                 <button class="btn btn-sm btn-danger-outline btn-delete-habit" data-id="${h.id}">✕</button>
@@ -668,6 +864,11 @@ const App = {
                 <button class="btn day-chip active" data-day="${wd.id}">${wd.short}</button>
               `).join('')}
             </div>
+          </div>
+          <div class="setting-group">
+            <label>Voraussichtliche Dauer (Stunden)</label>
+            <input type="number" id="new-habit-duration" value="0.5" min="0.1" max="8" step="0.25">
+            <p class="hint">z.B. 1.5 = 1h 30min, 0.5 = 30min</p>
           </div>
           <button class="btn btn-primary btn-block" id="btn-add-habit">Habit hinzufügen</button>
         </div>
@@ -820,10 +1021,12 @@ const App = {
     document.getElementById('btn-add-habit')?.addEventListener('click', () => {
       const name = document.getElementById('new-habit-name').value.trim();
       const icon = document.getElementById('new-habit-icon').value.trim() || '⭐';
+      const duration = parseFloat(document.getElementById('new-habit-duration')?.value) || 0.5;
       if (!name) { this.showToast('Bitte Name eingeben'); return; }
       Storage.addHabit({
         id: Storage.generateId(), name, icon,
-        category: selectedCat, timeSlot: selectedTs, days: [...selectedDays]
+        category: selectedCat, timeSlot: selectedTs, days: [...selectedDays],
+        duration: duration
       });
       this.showToast(`"${name}" hinzugefügt ✓`);
       this.renderSettings();
@@ -1224,6 +1427,32 @@ const App = {
     if (!days || days.length === 7) return 'Täglich';
     if (days.length === 0) return '–';
     return days.map(d => CONFIG.WEEKDAYS[d]?.short || '?').join(' ');
+  },
+
+  formatTimer(totalSeconds) {
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = Math.floor(totalSeconds % 60);
+    if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  },
+
+  startTimerTick() {
+    setInterval(() => {
+      if (this.currentTab !== 'today') return;
+      const timers = Storage.getActiveTimers();
+      const ids = Object.keys(timers);
+      if (ids.length === 0) return;
+      ids.forEach(habitId => {
+        const el = document.querySelector(`[data-timer-id="${habitId}"]`);
+        if (el) {
+          const elapsed = Storage.getTimerElapsed(habitId);
+          const logs = Storage.getTimerLogs(this._viewDate || Storage.todayStr());
+          const logged = logs[habitId] || 0;
+          el.textContent = this.formatTimer(logged + elapsed);
+        }
+      });
+    }, 1000);
   },
 
   // ============================================================

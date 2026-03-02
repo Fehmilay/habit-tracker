@@ -35,6 +35,8 @@ const Storage = {
           delete hab.frequency;
           migrated = true;
         }
+        // Migration: duration hinzufügen
+        if (hab.duration === undefined) { hab.duration = 0.5; migrated = true; }
       });
       if (migrated) this.setHabits(h);
       return h;
@@ -154,6 +156,7 @@ const Storage = {
       checks: this.getAllChecks(), journal: this.getAllJournals(),
       checkin: this.getAllCheckins(), checkinStreaks: this.getCheckinStreaks(),
       compensations: this.getAllCompensations(), compSettings: this.getCompSettings(),
+      timers: this.getActiveTimers(), timerLogs: this.getAllTimerLogs(),
       _syncedAt: new Date().toISOString()
     };
   },
@@ -167,6 +170,8 @@ const Storage = {
     if (data.checkinStreaks) this.setCheckinStreaks(data.checkinStreaks);
     if (data.compensations) this._set(CONFIG.STORAGE_KEYS.COMPENSATION, data.compensations);
     if (data.compSettings) this.setCompSettings(data.compSettings);
+    if (data.timers) this._set(CONFIG.STORAGE_KEYS.TIMERS, data.timers);
+    if (data.timerLogs) this._set(CONFIG.STORAGE_KEYS.TIMER_LOGS, data.timerLogs);
   },
   async syncPush() {
     const data = this.getAllData();
@@ -250,6 +255,53 @@ const Storage = {
   // ---- Avatar ----
   getAvatar() { return this._get(CONFIG.STORAGE_KEYS.AVATAR) || { mood: 'neutral', streak: 0 }; },
   setAvatar(s) { this._set(CONFIG.STORAGE_KEYS.AVATAR, s); },
+
+  // ---- Active Timers (passive/background) ----
+  // Format: { "habitId": { startedAt: timestamp, date: "2026-03-02" } }
+  getActiveTimers() { return this._get(CONFIG.STORAGE_KEYS.TIMERS) || {}; },
+  startTimer(habitId) {
+    const timers = this.getActiveTimers();
+    timers[habitId] = { startedAt: Date.now(), date: this.todayStr() };
+    this._set(CONFIG.STORAGE_KEYS.TIMERS, timers);
+  },
+  stopTimer(habitId) {
+    const timers = this.getActiveTimers();
+    const timer = timers[habitId];
+    if (timer) {
+      const elapsed = (Date.now() - timer.startedAt) / 1000; // seconds
+      delete timers[habitId];
+      this._set(CONFIG.STORAGE_KEYS.TIMERS, timers);
+      // Log elapsed time
+      this.addTimerLog(habitId, timer.date, elapsed);
+      return elapsed;
+    }
+    return 0;
+  },
+  getTimerElapsed(habitId) {
+    const timers = this.getActiveTimers();
+    const timer = timers[habitId];
+    if (!timer) return 0;
+    return (Date.now() - timer.startedAt) / 1000;
+  },
+  isTimerRunning(habitId) {
+    const timers = this.getActiveTimers();
+    return !!timers[habitId];
+  },
+
+  // ---- Timer Logs ----
+  // Format: { "2026-03-02": { "h1": totalSeconds, "h2": totalSeconds } }
+  getAllTimerLogs() { return this._get(CONFIG.STORAGE_KEYS.TIMER_LOGS) || {}; },
+  getTimerLogs(dateStr) { return this.getAllTimerLogs()[dateStr] || {}; },
+  addTimerLog(habitId, dateStr, seconds) {
+    const all = this.getAllTimerLogs();
+    if (!all[dateStr]) all[dateStr] = {};
+    all[dateStr][habitId] = (all[dateStr][habitId] || 0) + seconds;
+    this._set(CONFIG.STORAGE_KEYS.TIMER_LOGS, all);
+  },
+  getTotalLoggedTime(dateStr) {
+    const logs = this.getTimerLogs(dateStr);
+    return Object.values(logs).reduce((sum, s) => sum + s, 0);
+  },
 
   // ---- Helpers ----
   todayStr() { return new Date().toISOString().slice(0, 10); },

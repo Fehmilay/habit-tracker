@@ -6,6 +6,7 @@ const CONFIG = {
   KCAL_PER_KG: 7700,
   DEFAULT_GOAL_KG: 10,
   DEFAULT_DAILY_KCAL: -500,
+  ACTIVE_HOURS: 16, // Wachstunden pro Tag
 
   // Kategorien
   CATEGORIES: [
@@ -44,15 +45,15 @@ const CONFIG = {
 
   // Standard-Habits mit Tageszeit + Wochentagen
   DEFAULT_HABITS: [
-    { id: 'h1', name: 'Workout',        category: 'body',      icon: '🏋️', timeSlot: 'morning',   days: [0,1,2,3,4,5,6] },
-    { id: 'h2', name: '10k Schritte',   category: 'body',      icon: '🚶',  timeSlot: 'afternoon', days: [0,1,2,3,4,5,6] },
-    { id: 'h3', name: 'Gesund essen',   category: 'body',      icon: '🥗',  timeSlot: 'anytime',   days: [0,1,2,3,4,5,6] },
-    { id: 'h4', name: 'Wiegen',         category: 'body',      icon: '⚖️',  timeSlot: 'morning',   days: [0,3] },
-    { id: 'h5', name: 'Lesen',          category: 'personal',  icon: '📖',  timeSlot: 'evening',   days: [0,1,2,3,4,5,6] },
-    { id: 'h6', name: 'Kein Handy 1h',  category: 'personal',  icon: '📵',  timeSlot: 'evening',   days: [0,1,2,3,4,5,6] },
-    { id: 'h7', name: 'Journaling',     category: 'personal',  icon: '📝',  timeSlot: 'evening',   days: [0,1,2,3,4,5,6] },
-    { id: 'h8', name: 'Meditation',     category: 'spiritual', icon: '🧘',  timeSlot: 'morning',   days: [0,1,2,3,4,5,6] },
-    { id: 'h9', name: 'Dankbarkeit',    category: 'spiritual', icon: '🙏',  timeSlot: 'morning',   days: [0,1,2,3,4,5,6] }
+    { id: 'h1', name: 'Workout',        category: 'body',      icon: '🏋️', timeSlot: 'morning',   days: [0,1,2,3,4,5,6], duration: 1.5 },
+    { id: 'h2', name: '10k Schritte',   category: 'body',      icon: '🚶',  timeSlot: 'afternoon', days: [0,1,2,3,4,5,6], duration: 1.0 },
+    { id: 'h3', name: 'Gesund essen',   category: 'body',      icon: '🥗',  timeSlot: 'anytime',   days: [0,1,2,3,4,5,6], duration: 0.5 },
+    { id: 'h4', name: 'Wiegen',         category: 'body',      icon: '⚖️',  timeSlot: 'morning',   days: [0,3], duration: 0.1 },
+    { id: 'h5', name: 'Lesen',          category: 'personal',  icon: '📖',  timeSlot: 'evening',   days: [0,1,2,3,4,5,6], duration: 0.5 },
+    { id: 'h6', name: 'Kein Handy 1h',  category: 'personal',  icon: '📵',  timeSlot: 'evening',   days: [0,1,2,3,4,5,6], duration: 1.0 },
+    { id: 'h7', name: 'Journaling',     category: 'personal',  icon: '📝',  timeSlot: 'evening',   days: [0,1,2,3,4,5,6], duration: 0.25 },
+    { id: 'h8', name: 'Meditation',     category: 'spiritual', icon: '🧘',  timeSlot: 'morning',   days: [0,1,2,3,4,5,6], duration: 0.5 },
+    { id: 'h9', name: 'Dankbarkeit',    category: 'spiritual', icon: '🙏',  timeSlot: 'morning',   days: [0,1,2,3,4,5,6], duration: 0.25 }
   ],
 
   CIRCLE: { RADIUS: 90, STROKE_WIDTH: 14, SIZE: 220 },
@@ -68,7 +69,9 @@ const CONFIG = {
     CHECKIN_STREAKS: 'ht_checkin_streaks',
     SYNC_ID: 'ht_sync_id',
     COMPENSATION: 'ht_compensations',
-    COMP_SETTINGS: 'ht_comp_settings'
+    COMP_SETTINGS: 'ht_comp_settings',
+    TIMERS: 'ht_active_timers',
+    TIMER_LOGS: 'ht_timer_logs'
   },
 
   COLORS: {
