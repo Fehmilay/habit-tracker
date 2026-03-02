@@ -394,6 +394,49 @@ const App = {
     const habitStreak = this.calcHabitStreak(habits, allChecks);
     const kcalStreak = this.calcKcalStreak(kcalEntries);
 
+    // New metrics
+    const consistency30 = this.calcConsistency(habits, allChecks, 30);
+    const consistency7 = this.calcConsistency(habits, allChecks, 7);
+    const weeklyTrend = this.calcWeeklyConsistency(habits, allChecks);
+    const weakest = this.calcWeakestLink(habits, allChecks);
+    const balanceScores = this.calcBalanceScores(habits, allChecks);
+    const timeReality = this.calcTimeReality(habits);
+
+    // Consistency color + urgency
+    const conCol = consistency30 >= 80 ? 'var(--success)' : consistency30 >= 50 ? 'var(--warning)' : 'var(--danger)';
+    const conLabel = consistency30 >= 80 ? 'Stark 💪' : consistency30 >= 60 ? 'Ausbaufähig ⚠️' : consistency30 >= 30 ? 'Kritisch 🚨' : 'Alarm 🔴';
+    const trendDir = weeklyTrend[3] > weeklyTrend[2] ? '↑' : weeklyTrend[3] < weeklyTrend[2] ? '↓' : '→';
+    const trendCol = weeklyTrend[3] >= weeklyTrend[2] ? 'var(--success)' : 'var(--danger)';
+
+    // Weakest link message
+    let weakestHtml = '';
+    if (weakest && balanceScores.filter(b => b.count > 0).length > 1) {
+      const wCat = weakest.cat;
+      weakestHtml = `
+        <div class="insight-alert-card alert-weak">
+          <div class="alert-icon-wrap" style="background:${wCat.color}22; color:${wCat.color}">⚠️</div>
+          <div class="alert-content">
+            <span class="alert-title">Schwachstelle erkannt</span>
+            <span class="alert-msg"><strong style="color:${wCat.color}">${wCat.icon} ${wCat.name}</strong> zieht deine Disziplin runter.</span>
+            <span class="alert-detail">Nur ${weakest.rate}% in 30 Tagen – dein größtes Leck.</span>
+          </div>
+        </div>`;
+    }
+
+    // Balance visualization
+    const maxBalRate = Math.max(...balanceScores.map(b => b.rate), 1);
+    const balanceAvg = balanceScores.filter(b => b.count > 0).length > 0
+      ? Math.round(balanceScores.filter(b => b.count > 0).reduce((s, b) => s + b.rate, 0) / balanceScores.filter(b => b.count > 0).length) : 0;
+    const imbalance = balanceScores.filter(b => b.count > 0).length > 1
+      ? Math.max(...balanceScores.filter(b => b.count > 0).map(b => b.rate)) - Math.min(...balanceScores.filter(b => b.count > 0).map(b => b.rate))
+      : 0;
+    const balanceLabel = imbalance <= 15 ? 'Ausgewogen ✓' : imbalance <= 30 ? 'Leicht ungleich ⚠️' : 'Ungleichgewicht! 🔴';
+    const balanceCol = imbalance <= 15 ? 'var(--success)' : imbalance <= 30 ? 'var(--warning)' : 'var(--danger)';
+
+    // Time reality
+    const timePct = timeReality.plannedMin > 0 ? Math.round((timeReality.actualMin / timeReality.plannedMin) * 100) : 0;
+    const timeMsg = timePct >= 80 ? 'Du investierst echte Zeit 💪' : timePct >= 40 ? 'Mehr Zeit reinpacken ⚡' : timePct > 0 ? 'Wo bleibt die Zeit? 🤔' : 'Heute noch keinen Timer gestartet';
+
     // Overall completion
     const checkDays = Object.keys(allChecks);
     let totalDone = 0, totalPossible = 0;
@@ -406,8 +449,94 @@ const App = {
     const overallRate = totalPossible > 0 ? Math.round((totalDone / totalPossible) * 100) : 0;
 
     c.innerHTML = `
+      <!-- DISCIPLINE SCORE – Hero -->
+      <div class="discipline-hero">
+        <div class="disc-ring-wrap">
+          <svg width="180" height="180" viewBox="0 0 180 180">
+            <circle cx="90" cy="90" r="76" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="10"/>
+            <circle cx="90" cy="90" r="76" fill="none" stroke="${conCol}" stroke-width="10"
+              stroke-linecap="round" stroke-dasharray="${2 * Math.PI * 76}"
+              stroke-dashoffset="${2 * Math.PI * 76 * (1 - consistency30 / 100)}"
+              transform="rotate(-90 90 90)" class="disc-ring-fill"/>
+          </svg>
+          <div class="disc-ring-center">
+            <span class="disc-big-num" style="color:${conCol}">${consistency30}%</span>
+            <span class="disc-label">Konsistenz</span>
+          </div>
+        </div>
+        <div class="disc-meta">
+          <span class="disc-verdict" style="color:${conCol}">${conLabel}</span>
+          <span class="disc-sub">Letzte 30 Tage · Diese Woche: ${consistency7}%</span>
+          <div class="disc-trend">
+            <span style="color:${trendCol}">${trendDir} Trend</span>
+            <div class="disc-trend-bars">
+              ${weeklyTrend.map((w, i) => `<div class="disc-trend-bar" style="height:${Math.max(w, 4)}%; background:${i === 3 ? conCol : 'rgba(255,255,255,.15)'}"></div>`).join('')}
+            </div>
+            <span class="disc-trend-labels"><span>W-4</span><span>W-3</span><span>W-2</span><span>Jetzt</span></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ALERTS SECTION -->
+      ${weakestHtml}
+
+      <!-- BALANCE SCORE -->
+      <div class="insight-card balance-card">
+        <div class="insight-card-header">
+          <span class="insight-card-title">⚖️ Balance Score</span>
+          <span class="insight-card-badge" style="color:${balanceCol}">${balanceLabel}</span>
+        </div>
+        <div class="balance-bars">
+          ${balanceScores.filter(b => b.count > 0).map(b => {
+            const barCol = b.rate >= 70 ? 'var(--success)' : b.rate >= 40 ? 'var(--warning)' : 'var(--danger)';
+            return `
+              <div class="balance-row">
+                <span class="balance-cat" style="color:${b.cat.color}">${b.cat.icon} ${b.cat.name}</span>
+                <div class="balance-track">
+                  <div class="balance-fill" style="width:${b.rate}%; background:${barCol}"></div>
+                </div>
+                <span class="balance-val" style="color:${barCol}">${b.rate}%</span>
+              </div>`;
+          }).join('')}
+        </div>
+        ${imbalance > 15 ? `<p class="balance-warn">Differenz: ${imbalance}% – gleiche die Bereiche aus!</p>` : ''}
+      </div>
+
+      <!-- TIME REALITY CHECK -->
+      <div class="insight-card time-reality-card">
+        <div class="insight-card-header">
+          <span class="insight-card-title">⏱ Zeit-Realität</span>
+          <span class="insight-card-badge" style="color:${timePct >= 80 ? 'var(--success)' : timePct >= 40 ? 'var(--warning)' : 'var(--danger)'}">${timePct}%</span>
+        </div>
+        <div class="time-reality-row">
+          <div class="tr-block">
+            <span class="tr-num">${this.formatDuration(timeReality.plannedMin)}</span>
+            <span class="tr-label">Geplant</span>
+          </div>
+          <div class="tr-divider">→</div>
+          <div class="tr-block">
+            <span class="tr-num ${timePct < 40 ? 'tr-danger' : ''}">${this.formatDuration(timeReality.actualMin)}</span>
+            <span class="tr-label">Investiert</span>
+          </div>
+        </div>
+        <div class="tr-bar-wrap">
+          <div class="tr-bar-bg">
+            <div class="tr-bar-fill" style="width:${Math.min(timePct, 100)}%; background:${timePct >= 80 ? 'var(--success)' : timePct >= 40 ? 'var(--warning)' : 'var(--danger)'}"></div>
+          </div>
+        </div>
+        <p class="tr-msg">${timeMsg}</p>
+      </div>
+
+      <!-- STATS ROW -->
+      <div class="insights-stats">
+        <div class="stat-card"><span class="stat-card-value">${habitStreak}</span><span class="stat-card-label">Streak 🔥</span></div>
+        <div class="stat-card"><span class="stat-card-value">${overallRate}%</span><span class="stat-card-label">Gesamt-Rate</span></div>
+        <div class="stat-card"><span class="stat-card-value">${kcalStreak}</span><span class="stat-card-label">kcal Streak</span></div>
+        <div class="stat-card"><span class="stat-card-value">${avgKcal > 0 ? '+' : ''}${avgKcal}</span><span class="stat-card-label">⌀ kcal/Tag</span></div>
+      </div>
+
       <!-- KCAL FORTSCHRITTSKREIS -->
-      <div class="insights-hero">
+      <div class="insights-hero kcal-hero">
         <h2>🔥 Kalorien-Ziel</h2>
         <div class="circle-wrapper">
           ${this.renderProgressCircle(progress, percentText, goal, kgDone)}
@@ -421,16 +550,41 @@ const App = {
       <!-- TAGESZEIT-KREIS (16h) -->
       ${this.renderDayTimeCircle(habits)}
 
-      <!-- STATS -->
-      <div class="insights-stats">
-        <div class="stat-card"><span class="stat-card-value">${habitStreak}</span><span class="stat-card-label">Habit Streak 🔥</span></div>
-        <div class="stat-card"><span class="stat-card-value">${overallRate}%</span><span class="stat-card-label">Completion Rate</span></div>
-        <div class="stat-card"><span class="stat-card-value">${kcalStreak}</span><span class="stat-card-label">kcal Streak 📊</span></div>
-        <div class="stat-card"><span class="stat-card-value">${avgKcal > 0 ? '+' : ''}${avgKcal}</span><span class="stat-card-label">⌀ kcal/Tag</span></div>
-      </div>
-
       <!-- DAILY PROGRESS GRAPH -->
       ${this.renderDailyProgressGraph(habits, allChecks)}
+
+      <!-- HABIT DETAILS -->
+      <div class="habit-insights">
+        <h3>Habits im Detail <span class="hint-30d">30 Tage</span></h3>
+        ${habits.map(h => {
+          const cat = CONFIG.CATEGORIES.find(ct => ct.id === h.category);
+          let doneCount30 = 0, total30 = 0;
+          const today = new Date();
+          for (let i = 0; i < 30; i++) {
+            const d = new Date(today); d.setDate(d.getDate() - i);
+            const key = d.toISOString().slice(0, 10);
+            if (Storage.isHabitDueToday(h, key)) {
+              total30++;
+              const dc = allChecks[key] || {};
+              if (dc[h.id]?.status === 'done') doneCount30++;
+            }
+          }
+          const rate = total30 > 0 ? Math.round((doneCount30 / total30) * 100) : 0;
+          const skippedCount = Object.values(allChecks).filter(dc => dc[h.id]?.status === 'skipped').length;
+          const rateCol = rate >= 70 ? 'var(--success)' : rate >= 40 ? 'var(--warning)' : 'var(--danger)';
+          return `
+            <div class="habit-insight-row">
+              <span class="habit-insight-icon">${h.icon}</span>
+              <span class="habit-insight-name">${h.name}</span>
+              <div class="habit-insight-bar">
+                <div class="habit-insight-fill" style="width:${rate}%; background:${rateCol}"></div>
+              </div>
+              <span class="habit-insight-rate" style="color:${rateCol}">${rate}%</span>
+              ${skippedCount > 0 ? `<span class="skip-count">${skippedCount}✗</span>` : ''}
+            </div>
+          `;
+        }).join('')}
+      </div>
 
       <!-- KALENDER -->
       <div class="calendar-section">
@@ -471,30 +625,6 @@ const App = {
           <span class="legend-item"><span class="legend-dot leg-proj-goal"></span>Ziel erreicht</span>
           <span class="legend-item"><span class="legend-dot leg-proj-path"></span>Projektion</span>
         </div>
-      </div>
-
-      <!-- HABIT DETAILS -->
-      <div class="habit-insights">
-        <h3>Habits im Detail</h3>
-        ${habits.map(h => {
-          const cat = CONFIG.CATEGORIES.find(ct => ct.id === h.category);
-          let doneCount = 0;
-          Object.values(allChecks).forEach(dc => { if (dc[h.id]?.status === 'done') doneCount++; });
-          const totalD = Math.max(checkDays.length, 1);
-          const rate = Math.round((doneCount / totalD) * 100);
-          const skippedCount = Object.values(allChecks).filter(dc => dc[h.id]?.status === 'skipped').length;
-          return `
-            <div class="habit-insight-row">
-              <span class="habit-insight-icon">${h.icon}</span>
-              <span class="habit-insight-name">${h.name}</span>
-              <div class="habit-insight-bar">
-                <div class="habit-insight-fill" style="width:${rate}%; background:${cat?.color || CONFIG.COLORS.PRIMARY}"></div>
-              </div>
-              <span class="habit-insight-rate">${rate}%</span>
-              ${skippedCount > 0 ? `<span class="skip-count">${skippedCount}✗</span>` : ''}
-            </div>
-          `;
-        }).join('')}
       </div>
     `;
 
@@ -1557,6 +1687,99 @@ const App = {
   // ============================================================
   //  HELPERS
   // ============================================================
+
+  // Consistency Score – last 30 days percentage
+  calcConsistency(habits, allChecks, days = 30) {
+    const today = new Date();
+    let totalDone = 0, totalDue = 0;
+    for (let i = 0; i < days; i++) {
+      const d = new Date(today); d.setDate(d.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      const dc = allChecks[key] || {};
+      const due = habits.filter(h => Storage.isHabitDueToday(h, key));
+      const done = Object.values(dc).filter(v => v.status === 'done').length;
+      totalDue += due.length;
+      totalDone += Math.min(done, due.length);
+    }
+    return totalDue > 0 ? Math.round((totalDone / totalDue) * 100) : 0;
+  },
+
+  // Consistency per week (last 4 weeks) for trend
+  calcWeeklyConsistency(habits, allChecks) {
+    const today = new Date();
+    const weeks = [];
+    for (let w = 0; w < 4; w++) {
+      let done = 0, due = 0;
+      for (let d = 0; d < 7; d++) {
+        const dt = new Date(today); dt.setDate(dt.getDate() - (w * 7 + d));
+        const key = dt.toISOString().slice(0, 10);
+        const dc = allChecks[key] || {};
+        const dueH = habits.filter(h => Storage.isHabitDueToday(h, key));
+        due += dueH.length;
+        done += Math.min(Object.values(dc).filter(v => v.status === 'done').length, dueH.length);
+      }
+      weeks.unshift(due > 0 ? Math.round((done / due) * 100) : 0);
+    }
+    return weeks;
+  },
+
+  // Weakest Link – category with worst completion
+  calcWeakestLink(habits, allChecks) {
+    const catScores = {};
+    CONFIG.CATEGORIES.forEach(cat => {
+      const catHabits = habits.filter(h => h.category === cat.id);
+      if (catHabits.length === 0) return;
+      let done = 0, total = 0;
+      const today = new Date();
+      for (let i = 0; i < 30; i++) {
+        const d = new Date(today); d.setDate(d.getDate() - i);
+        const key = d.toISOString().slice(0, 10);
+        const dc = allChecks[key] || {};
+        const due = catHabits.filter(h => Storage.isHabitDueToday(h, key));
+        total += due.length;
+        due.forEach(h => { if (dc[h.id]?.status === 'done') done++; });
+      }
+      catScores[cat.id] = { cat, rate: total > 0 ? Math.round((done / total) * 100) : 0, total };
+    });
+    const entries = Object.values(catScores).filter(e => e.total > 0);
+    if (entries.length === 0) return null;
+    return entries.reduce((worst, e) => e.rate < worst.rate ? e : worst, entries[0]);
+  },
+
+  // Balance Score – per category completion rates
+  calcBalanceScores(habits, allChecks) {
+    return CONFIG.CATEGORIES.map(cat => {
+      const catHabits = habits.filter(h => h.category === cat.id);
+      if (catHabits.length === 0) return { cat, rate: 0, count: 0 };
+      let done = 0, total = 0;
+      const today = new Date();
+      for (let i = 0; i < 30; i++) {
+        const d = new Date(today); d.setDate(d.getDate() - i);
+        const key = d.toISOString().slice(0, 10);
+        const dc = allChecks[key] || {};
+        const due = catHabits.filter(h => Storage.isHabitDueToday(h, key));
+        total += due.length;
+        due.forEach(h => { if (dc[h.id]?.status === 'done') done++; });
+      }
+      return { cat, rate: total > 0 ? Math.round((done / total) * 100) : 0, count: catHabits.length };
+    });
+  },
+
+  // Time Reality Check – planned vs actual time
+  calcTimeReality(habits) {
+    const today = Storage.todayStr();
+    const timerLogs = Storage.getTimerLogs(today);
+    const activeTimers = Storage.getActiveTimers();
+    const dueHabits = habits.filter(h => Storage.isHabitDueToday(h, today));
+    let plannedMin = 0, actualSec = 0;
+    dueHabits.forEach(h => {
+      plannedMin += h.duration || 30;
+      let sec = timerLogs[h.id] || 0;
+      if (activeTimers[h.id]) sec += (Date.now() - activeTimers[h.id].startedAt) / 1000;
+      actualSec += sec;
+    });
+    return { plannedMin, actualMin: Math.round(actualSec / 60), dueCount: dueHabits.length };
+  },
 
   calcHabitStreak(habits, allChecks) {
     if (habits.length === 0) return 0;
