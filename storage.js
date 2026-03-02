@@ -35,8 +35,13 @@ const Storage = {
           delete hab.frequency;
           migrated = true;
         }
-        // Migration: duration hinzufügen
-        if (hab.duration === undefined) { hab.duration = 0.5; migrated = true; }
+        // Migration: duration hinzufügen (jetzt in Minuten)
+        if (hab.duration === undefined) { hab.duration = 30; migrated = true; }
+        // Migration: alte float-Stunden zu Minuten konvertieren
+        else if (hab.duration < 10 && hab.duration !== Math.floor(hab.duration)) {
+          hab.duration = Math.round(hab.duration * 60);
+          migrated = true;
+        }
       });
       if (migrated) this.setHabits(h);
       return h;
@@ -46,6 +51,11 @@ const Storage = {
   },
   setHabits(h) { this._set(CONFIG.STORAGE_KEYS.HABITS, h); },
   addHabit(h)  { const all = this.getHabits(); all.push(h); this.setHabits(all); },
+  updateHabit(id, updates) {
+    const all = this.getHabits();
+    const idx = all.findIndex(h => h.id === id);
+    if (idx >= 0) { Object.assign(all[idx], updates); this.setHabits(all); }
+  },
   removeHabit(id) {
     this.setHabits(this.getHabits().filter(h => h.id !== id));
     const checks = this.getAllChecks();

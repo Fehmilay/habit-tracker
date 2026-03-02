@@ -196,8 +196,8 @@ const App = {
     const reason = check?.reason || '';
     const cat = CONFIG.CATEGORIES.find(ct => ct.id === h.category);
     const daysLabel = (h.days && h.days.length < 7) ? this.getDaysLabel(h.days) : null;
-    const duration = h.duration || 0.5;
-    const durationLabel = duration >= 1 ? `${duration}h` : `${Math.round(duration * 60)}min`;
+    const duration = h.duration || 30;
+    const durationLabel = this.formatDuration(duration);
 
     // Timer state
     const isTimerRunning = Storage.isTimerRunning(h.id);
@@ -205,7 +205,7 @@ const App = {
     const timerLogs = Storage.getTimerLogs(today);
     const loggedTime = timerLogs[h.id] || 0;
     const totalTime = loggedTime + timerElapsed;
-    const expectedSec = duration * 3600;
+    const expectedSec = duration * 60;
     const timerProgress = Math.min(totalTime / expectedSec, 1);
 
     return `
@@ -689,9 +689,9 @@ const App = {
     const habitSegments = [];
 
     dueHabits.forEach(h => {
-      const dur = h.duration || 0.5;
+      const dur = h.duration || 30;
       const slot = h.timeSlot || 'anytime';
-      slotHours[slot] = (slotHours[slot] || 0) + dur;
+      slotHours[slot] = (slotHours[slot] || 0) + dur / 60;
       const cat = CONFIG.CATEGORIES.find(ct => ct.id === h.category);
       habitSegments.push({
         name: h.name,
@@ -702,7 +702,7 @@ const App = {
       });
     });
 
-    const usedH = dueHabits.reduce((sum, h) => sum + (h.duration || 0.5), 0);
+    const usedH = dueHabits.reduce((sum, h) => sum + (h.duration || 30), 0) / 60;
     const freeH = Math.max(0, totalH - usedH);
 
     // Time slot backgrounds (for the outer ring)
@@ -737,7 +737,7 @@ const App = {
     let innerArcs = '';
     let innerOffset = 0;
     habitSegments.forEach(seg => {
-      const frac = seg.duration / totalH;
+      const frac = (seg.duration / 60) / totalH;
       const dashLen = frac * C2;
       const gap = C2 - dashLen;
       innerArcs += `<circle cx="${CX}" cy="${CY}" r="${R2}" fill="none"
@@ -772,8 +772,8 @@ const App = {
 
     // Habit list for the circle section
     const habitListHtml = habitSegments.map(seg => {
-      const durLabel = seg.duration >= 1 ? `${seg.duration}h` : `${Math.round(seg.duration * 60)}min`;
-      const pct = ((seg.duration / totalH) * 100).toFixed(1);
+      const durLabel = App.formatDuration(seg.duration);
+      const pct = ((seg.duration / 60 / totalH) * 100).toFixed(1);
       return `<div class="dc-habit-row">
         <span class="dc-habit-dot" style="background:${seg.color}"></span>
         <span class="dc-habit-icon">${seg.icon}</span>
@@ -798,8 +798,8 @@ const App = {
             <!-- Inner: Habits -->
             ${innerArcs}
             <!-- Center text -->
-            <text x="${CX}" y="${CY - 8}" text-anchor="middle" class="dc-center-big">${actualFreeH}h</text>
-            <text x="${CX}" y="${CY + 12}" text-anchor="middle" class="dc-center-sub">übrig</text>
+            <text x="${CX}" y="${CY - 8}" text-anchor="middle" class="dc-center-big">${actualSpentH.toFixed(1)}h</text>
+            <text x="${CX}" y="${CY + 12}" text-anchor="middle" class="dc-center-sub">verbraucht</text>
           </svg>
         </div>
 
@@ -863,9 +863,9 @@ const App = {
             const cat = CONFIG.CATEGORIES.find(ct => ct.id === h.category);
             const ts = CONFIG.TIME_SLOTS.find(t => t.id === h.timeSlot);
             const daysLabel = h.days?.length === 7 ? 'Tägl.' : App.getDaysLabel(h.days);
-            const durLabel = h.duration ? (h.duration >= 1 ? `${h.duration}h` : `${Math.round(h.duration * 60)}min`) : '30min';
+            const durLabel = App.formatDuration(h.duration || 30);
             return `
-              <div class="manage-habit-item">
+              <div class="manage-habit-item" data-id="${h.id}">
                 <span class="manage-habit-icon">${h.icon}</span>
                 <div class="manage-habit-info">
                   <span class="manage-habit-name">${h.name}</span>
@@ -876,7 +876,54 @@ const App = {
                     · ⏱ ${durLabel}
                   </span>
                 </div>
+                <button class="btn btn-sm btn-edit-habit" data-id="${h.id}" title="Bearbeiten">✏️</button>
                 <button class="btn btn-sm btn-danger-outline btn-delete-habit" data-id="${h.id}">✕</button>
+              </div>
+              <div class="edit-habit-form hidden" data-edit-id="${h.id}">
+                <div class="setting-group">
+                  <label>Name</label>
+                  <input type="text" class="edit-habit-name" value="${h.name}">
+                </div>
+                <div class="setting-group">
+                  <label>Emoji</label>
+                  <input type="text" class="edit-habit-icon" value="${h.icon}" maxlength="4">
+                </div>
+                <div class="setting-group">
+                  <label>Kategorie</label>
+                  <div class="toggle-row flex-wrap">
+                    ${CONFIG.CATEGORIES.map(ct => `
+                      <button class="btn toggle-btn edit-cat-select ${ct.id === h.category ? 'active' : ''}" data-cat="${ct.id}">
+                        ${ct.icon} ${ct.name}
+                      </button>
+                    `).join('')}
+                  </div>
+                </div>
+                <div class="setting-group">
+                  <label>Tageszeit</label>
+                  <div class="toggle-row flex-wrap">
+                    ${CONFIG.TIME_SLOTS.map(t => `
+                      <button class="btn toggle-btn edit-ts-select ${t.id === (h.timeSlot || 'anytime') ? 'active' : ''}" data-ts="${t.id}">
+                        ${t.icon} ${t.name}
+                      </button>
+                    `).join('')}
+                  </div>
+                </div>
+                <div class="setting-group">
+                  <label>Wochentage</label>
+                  <div class="weekday-picker">
+                    ${CONFIG.WEEKDAYS.map(wd => `
+                      <button class="btn day-chip edit-day-chip ${(h.days || [0,1,2,3,4,5,6]).includes(wd.id) ? 'active' : ''}" data-day="${wd.id}">${wd.short}</button>
+                    `).join('')}
+                  </div>
+                </div>
+                <div class="setting-group">
+                  <label>Dauer (Minuten)</label>
+                  <input type="number" class="edit-habit-duration" value="${h.duration || 30}" min="1" max="480" step="5">
+                </div>
+                <div class="edit-habit-actions">
+                  <button class="btn btn-primary btn-save-habit" data-id="${h.id}">Speichern</button>
+                  <button class="btn btn-cancel-edit" data-id="${h.id}">Abbrechen</button>
+                </div>
               </div>
             `;
           }).join('')}
@@ -932,9 +979,9 @@ const App = {
             </div>
           </div>
           <div class="setting-group">
-            <label>Voraussichtliche Dauer (Stunden)</label>
-            <input type="number" id="new-habit-duration" value="0.5" min="0.1" max="8" step="0.25">
-            <p class="hint">z.B. 1.5 = 1h 30min, 0.5 = 30min</p>
+            <label>Dauer (Minuten)</label>
+            <input type="number" id="new-habit-duration" value="30" min="1" max="480" step="5">
+            <p class="hint">z.B. 30 = 30min, 90 = 1h 30min</p>
           </div>
           <button class="btn btn-primary btn-block" id="btn-add-habit">Habit hinzufügen</button>
         </div>
@@ -1042,6 +1089,61 @@ const App = {
       });
     });
 
+    // Edit habits – toggle form
+    c.querySelectorAll('.btn-edit-habit').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.id;
+        const form = c.querySelector(`.edit-habit-form[data-edit-id="${id}"]`);
+        if (form) form.classList.toggle('hidden');
+      });
+    });
+
+    // Edit habits – cancel
+    c.querySelectorAll('.btn-cancel-edit').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const form = c.querySelector(`.edit-habit-form[data-edit-id="${btn.dataset.id}"]`);
+        if (form) form.classList.add('hidden');
+      });
+    });
+
+    // Edit habits – toggle selectors within each edit form
+    c.querySelectorAll('.edit-habit-form').forEach(form => {
+      form.querySelectorAll('.edit-cat-select').forEach(btn => {
+        btn.addEventListener('click', () => {
+          form.querySelectorAll('.edit-cat-select').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+        });
+      });
+      form.querySelectorAll('.edit-ts-select').forEach(btn => {
+        btn.addEventListener('click', () => {
+          form.querySelectorAll('.edit-ts-select').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+        });
+      });
+      form.querySelectorAll('.edit-day-chip').forEach(btn => {
+        btn.addEventListener('click', () => { btn.classList.toggle('active'); });
+      });
+    });
+
+    // Edit habits – save
+    c.querySelectorAll('.btn-save-habit').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.id;
+        const form = c.querySelector(`.edit-habit-form[data-edit-id="${id}"]`);
+        if (!form) return;
+        const name = form.querySelector('.edit-habit-name').value.trim();
+        const icon = form.querySelector('.edit-habit-icon').value.trim() || '⭐';
+        const category = form.querySelector('.edit-cat-select.active')?.dataset.cat || 'body';
+        const timeSlot = form.querySelector('.edit-ts-select.active')?.dataset.ts || 'anytime';
+        const days = [...form.querySelectorAll('.edit-day-chip.active')].map(d => parseInt(d.dataset.day)).sort((a,b) => a-b);
+        const duration = parseInt(form.querySelector('.edit-habit-duration').value) || 30;
+        if (!name) { this.showToast('Bitte Name eingeben'); return; }
+        Storage.updateHabit(id, { name, icon, category, timeSlot, days, duration });
+        this.showToast(`"${name}" aktualisiert ✓`);
+        this.renderSettings();
+      });
+    });
+
     // Toggle selectors
     const bindToggles = (selector, callback) => {
       c.querySelectorAll(selector).forEach(btn => {
@@ -1087,7 +1189,7 @@ const App = {
     document.getElementById('btn-add-habit')?.addEventListener('click', () => {
       const name = document.getElementById('new-habit-name').value.trim();
       const icon = document.getElementById('new-habit-icon').value.trim() || '⭐';
-      const duration = parseFloat(document.getElementById('new-habit-duration')?.value) || 0.5;
+      const duration = parseInt(document.getElementById('new-habit-duration')?.value) || 30;
       if (!name) { this.showToast('Bitte Name eingeben'); return; }
       Storage.addHabit({
         id: Storage.generateId(), name, icon,
@@ -1495,6 +1597,15 @@ const App = {
     return days.map(d => CONFIG.WEEKDAYS[d]?.short || '?').join(' ');
   },
 
+  formatDuration(minutes) {
+    const m = Math.round(minutes || 0);
+    const h = Math.floor(m / 60);
+    const rest = m % 60;
+    if (h > 0 && rest > 0) return `${h}h ${rest}min`;
+    if (h > 0) return `${h}h`;
+    return `${m}min`;
+  },
+
   formatTimer(totalSeconds) {
     const h = Math.floor(totalSeconds / 3600);
     const m = Math.floor((totalSeconds % 3600) / 60);
@@ -1560,9 +1671,9 @@ const App = {
 
     const cat = CONFIG.CATEGORIES.find(ct => ct.id === h.category);
     const catColor = cat?.color || '#6c63ff';
-    const duration = h.duration || 0.5;
-    const durationLabel = duration >= 1 ? `${duration}h` : `${Math.round(duration * 60)} min`;
-    const expectedSec = duration * 3600;
+    const duration = h.duration || 30;
+    const durationLabel = this.formatDuration(duration);
+    const expectedSec = duration * 60;
 
     const isRunning = Storage.isTimerRunning(h.id);
     const elapsed = isRunning ? Storage.getTimerElapsed(h.id) : 0;
@@ -1678,8 +1789,8 @@ const App = {
     const h = habits.find(hab => hab.id === this._focusHabitId);
     if (!h) return;
 
-    const duration = h.duration || 0.5;
-    const expectedSec = duration * 3600;
+    const duration = h.duration || 30;
+    const expectedSec = duration * 60;
     const elapsed = Storage.isTimerRunning(h.id) ? Storage.getTimerElapsed(h.id) : 0;
     const logs = Storage.getTimerLogs(Storage.todayStr());
     const logged = logs[h.id] || 0;

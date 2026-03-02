@@ -648,6 +648,34 @@ main { padding: 16px 16px 0; max-width: 480px; margin: 0 auto; }
   display: block; margin-top: 2px;
 }
 
+.btn-edit-habit {
+  background: none; border: none; font-size: .85rem; cursor: pointer;
+  padding: 4px 6px; opacity: .6; transition: opacity .2s;
+}
+.btn-edit-habit:hover { opacity: 1; }
+
+.edit-habit-form {
+  background: rgba(255,255,255,.04); border-radius: var(--radius-sm);
+  padding: 14px; margin: 4px 0 10px 0; border-left: 3px solid var(--primary);
+}
+.edit-habit-form.hidden { display: none; }
+.edit-habit-form .setting-group { margin-bottom: 10px; }
+.edit-habit-form label { font-size: .75rem; color: var(--text-muted); margin-bottom: 4px; display: block; }
+.edit-habit-form input[type="text"],
+.edit-habit-form input[type="number"] {
+  width: 100%; padding: 8px 10px; border-radius: var(--radius-sm);
+  border: 1px solid rgba(255,255,255,.1); background: rgba(0,0,0,.25);
+  color: var(--text-main); font-size: .82rem;
+}
+.edit-habit-actions {
+  display: flex; gap: 8px; margin-top: 10px;
+}
+.edit-habit-actions .btn { flex: 1; font-size: .78rem; padding: 8px 0; }
+.btn-cancel-edit {
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
+  color: var(--text-muted); border-radius: var(--radius-sm); cursor: pointer;
+}
+
 .add-habit-form {
   background: rgba(255,255,255,.03); border-radius: var(--radius-sm);
   padding: 16px; margin-top: 8px;
