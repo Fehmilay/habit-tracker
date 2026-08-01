@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion'
 import { DeviationReadout } from './DeviationReadout'
 import { motionEase } from '@/lib/design/tokens'
-import { daysBetween, isHabitDue, localDateKey } from '@/lib/journey/date'
+import { daysBetween, flightCycleProgress, isHabitDue, localDateKey } from '@/lib/journey/date'
 import { averageCompletion } from '@/lib/journey/projection'
 import { formatKilometres } from '@/lib/flight/formatDeviation'
 import { selectionHaptic } from '@/lib/native/ios'
@@ -30,6 +30,8 @@ export function FlightHud({ onOpenHabits, onOpenStats, onOpenMap }: FlightHudPro
   if (gameMode !== 'idle') return null
 
   const today = localDateKey()
+  const flightCycle = flightCycleProgress(journey.startDate, today)
+  const dateLabel = new Intl.DateTimeFormat('de-DE', { weekday: 'short', day: '2-digit', month: 'short' }).format(new Date(`${today}T12:00:00`))
   const due = habits.filter((habit) => isHabitDue(habit, today))
   const learnableHabits = (due.length > 0 ? due : habits.filter((habit) => !habit.archived)).slice(0, 6)
   const rated = due.filter((habit) => drafts[habit.id]).length
@@ -54,6 +56,12 @@ export function FlightHud({ onOpenHabits, onOpenStats, onOpenMap }: FlightHudPro
           <span>{journey.destinationCity} · Weltkarte</span>
           <small className="numeric">{formatKilometres(remainingDistance)} KM VERBLEIBEND</small>
         </button>
+        <div className="flight-cycle-timer" data-testid="flight-cycle-timer" aria-label={`30-Tage-Flug, Tag ${flightCycle.day}, noch ${flightCycle.remainingDays} Tage`}>
+          <span>{dateLabel}</span>
+          <strong className="numeric">TAG {flightCycle.day}<b>/30</b></strong>
+          <i aria-hidden="true"><b style={{ width: `${flightCycle.progress * 100}%` }} /></i>
+          <small>{flightCycle.remainingDays === 0 ? 'FINALTAG' : `NOCH ${flightCycle.remainingDays} TAGE`}</small>
+        </div>
         <button type="button" className="stats-shortcut" onClick={onOpenStats} aria-label="Insights öffnen">↗</button>
       </motion.header>
 

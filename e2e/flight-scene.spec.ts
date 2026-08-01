@@ -79,7 +79,7 @@ test.describe('mobile layout', () => {
     await openFresh(page)
     const viewport = page.viewportSize()
     expect(viewport).not.toBeNull()
-    for (const id of ['deviation-value', 'primary-action', 'play-flight']) {
+    for (const id of ['flight-cycle-timer', 'deviation-value', 'primary-action', 'play-flight']) {
       const box = await page.getByTestId(id).boundingBox()
       expect(box).not.toBeNull()
       if (!box || !viewport) continue

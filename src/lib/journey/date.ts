@@ -13,6 +13,25 @@ export function daysBetween(startDate: string, endDate = localDateKey()): number
   return Math.max(0, Math.floor((end.getTime() - start.getTime()) / 86_400_000))
 }
 
+export interface FlightCycleProgress {
+  cycle: number
+  day: number
+  remainingDays: number
+  progress: number
+}
+
+export function flightCycleProgress(startDate: string, endDate = localDateKey(), cycleDays = 30): FlightCycleProgress {
+  const length = Math.max(1, Math.round(cycleDays))
+  const elapsedDays = daysBetween(startDate, endDate)
+  const day = elapsedDays % length + 1
+  return {
+    cycle: Math.floor(elapsedDays / length) + 1,
+    day,
+    remainingDays: length - day,
+    progress: day / length,
+  }
+}
+
 export function weekdayIndex(dateKey: string): number {
   const day = new Date(`${dateKey}T12:00:00`).getDay()
   return (day + 6) % 7

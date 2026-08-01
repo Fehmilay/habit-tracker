@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isHabitDue } from './date'
+import { flightCycleProgress, isHabitDue } from './date'
 import type { Habit } from './types'
 
 const habit: Habit = {
@@ -22,5 +22,16 @@ describe('limited habit flights', () => {
 
   it('keeps unlimited habits active', () => {
     expect(isHabitDue(habit, '2027-08-01')).toBe(true)
+  })
+})
+
+describe('flightCycleProgress', () => {
+  it('counts a persistent 30-day flight from the journey start', () => {
+    expect(flightCycleProgress('2026-08-01', '2026-08-01')).toEqual({ cycle: 1, day: 1, remainingDays: 29, progress: 1 / 30 })
+    expect(flightCycleProgress('2026-08-01', '2026-08-30')).toEqual({ cycle: 1, day: 30, remainingDays: 0, progress: 1 })
+  })
+
+  it('starts the next cycle automatically without resetting history', () => {
+    expect(flightCycleProgress('2026-08-01', '2026-08-31')).toEqual({ cycle: 2, day: 1, remainingDays: 29, progress: 1 / 30 })
   })
 })

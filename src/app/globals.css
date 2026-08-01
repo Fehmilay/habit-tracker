@@ -225,9 +225,10 @@ button:active:not(:disabled) { transform: scale(.97); }
 }
 
 .flight-hud header {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: flex-start;
-  justify-content: space-between;
+  gap: 10px;
 }
 
 .flight-hud button,
@@ -237,12 +238,33 @@ button:active:not(:disabled) { transform: scale(.97); }
 
 .destination-button {
   display: grid;
+  min-width: 0;
   justify-items: start;
   padding: 0;
   border: 0;
   background: none;
   text-align: left;
 }
+
+.flight-cycle-timer {
+  display: grid;
+  min-width: 104px;
+  justify-items: center;
+  gap: 3px;
+  padding: 7px 10px 8px;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 16px;
+  background: rgba(5,12,23,.56);
+  box-shadow: 0 12px 34px -24px rgba(0,0,0,.95), inset 0 1px rgba(255,255,255,.07);
+  backdrop-filter: blur(15px) saturate(145%);
+}
+
+.flight-cycle-timer > span { color: var(--color-ink-muted); font-size: .46rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+.flight-cycle-timer > strong { color: var(--color-course-bright); font-size: .74rem; letter-spacing: .04em; }
+.flight-cycle-timer > strong b { color: var(--color-ink-muted); font-size: .56rem; font-weight: 650; }
+.flight-cycle-timer > i { display: block; width: 100%; height: 3px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.08); }
+.flight-cycle-timer > i b { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--color-correction), var(--color-projection-soft)); box-shadow: 0 0 9px rgba(47,224,176,.45); }
+.flight-cycle-timer > small { color: var(--color-correction-soft); font-size: .43rem; font-weight: 800; letter-spacing: .1em; }
 
 .destination-button strong {
   font-size: clamp(1.5rem, 6vw, 2rem);
@@ -278,6 +300,8 @@ button:active:not(:disabled) { transform: scale(.97); }
   background: rgba(7,14,27,.5);
   backdrop-filter: blur(12px);
 }
+
+.stats-shortcut { justify-self: end; }
 
 .deviation-anchor {
   position: absolute;
@@ -967,6 +991,10 @@ button:active:not(:disabled) { transform: scale(.97); }
   .icon-picker { grid-template-columns: repeat(4, 1fr); }
   .habit-footer { margin-top: 14px; }
   .flight-hud { padding-left: calc(var(--safe-left) + 14px); padding-right: calc(var(--safe-right) + 14px); }
+  .flight-hud header { gap: 6px; }
+  .flight-cycle-timer { min-width: 94px; padding-inline: 8px; }
+  .destination-button span { max-width: 92px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .destination-button small { font-size: .5rem; letter-spacing: .07em; white-space: nowrap; }
   .journey-strip { margin-bottom: 8px; }
   .aircraft-play-button { bottom: calc(var(--safe-bottom) + 151px); min-height: 48px; }
   .checkin-button { min-height: 52px; }
