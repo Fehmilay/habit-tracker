@@ -1,5 +1,5 @@
 import { defineConfig, devices } from '@playwright/test'
-import { resolveChromiumExecutable, WEBGL_LAUNCH_ARGS } from './e2e/chromium'
+import { resolveChromiumExecutable, WEBGL_LAUNCH_ARGS } from './playwright/chromium'
 
 const PORT = 3100
 const BASE_URL = `http://127.0.0.1:${PORT}`
