@@ -6,6 +6,7 @@ import { AdditiveBlending, type Group } from 'three'
 import { SceneLabelSprite } from './SceneLabelSprite'
 import { gameRuntime, resetGameRuntime } from '@/lib/game/gameRuntime'
 import { safeDelta } from '@/lib/flight/flightMath'
+import { focusHaptic } from '@/lib/native/ios'
 import { useJourneyStore } from '@/store/journeyStore'
 
 const RING_SPACING = 72
@@ -60,6 +61,7 @@ export function HabitRingCourse() {
     const dy = gameRuntime.planeY - pattern.y
     const hit = dx * dx + dy * dy <= 12.25
     registerRing(hit)
+    focusHaptic(hit ? 'success' : 'failure')
     if (hit && typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate(22)
     if (ringIndex >= rings.length - 1) finishGame()
   })

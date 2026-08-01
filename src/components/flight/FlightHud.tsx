@@ -6,6 +6,7 @@ import { motionEase } from '@/lib/design/tokens'
 import { daysBetween, isHabitDue, localDateKey } from '@/lib/journey/date'
 import { averageCompletion } from '@/lib/journey/projection'
 import { formatKilometres } from '@/lib/flight/formatDeviation'
+import { selectionHaptic } from '@/lib/native/ios'
 import { useFlightStore } from '@/store/flightStore'
 import { useJourneyStore } from '@/store/journeyStore'
 
@@ -30,6 +31,7 @@ export function FlightHud({ onOpenHabits, onOpenStats, onOpenMap }: FlightHudPro
 
   const today = localDateKey()
   const due = habits.filter((habit) => isHabitDue(habit, today))
+  const learnableHabits = (due.length > 0 ? due : habits.filter((habit) => !habit.archived)).slice(0, 6)
   const rated = due.filter((habit) => drafts[habit.id]).length
   const dayIndex = Math.min(journey.totalDays, daysBetween(journey.startDate) + 1)
   const remainingDays = Math.max(0, journey.totalDays - dayIndex)
@@ -38,8 +40,10 @@ export function FlightHud({ onOpenHabits, onOpenStats, onOpenMap }: FlightHudPro
   const dimmed = sequenceRunning && animationPhase !== 'idle'
 
   const play = () => {
-    const ringIds = (due.length > 0 ? due : habits.filter((habit) => !habit.archived)).slice(0, 6).map((habit) => habit.id)
-    if (ringIds.length > 0) startGame(ringIds)
+    const ringIds = learnableHabits.map((habit) => habit.id)
+    if (ringIds.length === 0) return
+    selectionHaptic()
+    startGame(ringIds)
   }
 
   return (
@@ -57,6 +61,20 @@ export function FlightHud({ onOpenHabits, onOpenStats, onOpenMap }: FlightHudPro
         <DeviationReadout />
       </motion.div>
 
+      <motion.button
+        className="aircraft-play-button"
+        type="button"
+        onClick={play}
+        disabled={learnableHabits.length === 0}
+        animate={{ opacity: dimmed ? 0.1 : 1 }}
+        transition={{ duration: 0.4, ease: motionEase.standard }}
+        data-testid="play-flight"
+        aria-label={`Habit Flight mit ${learnableHabits.length} Habit-Ringen starten`}
+      >
+        <i aria-hidden="true">▶</i>
+        <span><strong>HABIT FLIGHT</strong><small>{learnableHabits.length} RINGE</small></span>
+      </motion.button>
+
       <motion.footer animate={{ opacity: dimmed ? 0.1 : 1 }} transition={{ duration: 0.4, ease: motionEase.standard }}>
         <div className="journey-strip">
           <span><small>REISETAG</small><strong className="numeric">{dayIndex}/{journey.totalDays}</strong></span>
@@ -64,7 +82,6 @@ export function FlightHud({ onOpenHabits, onOpenStats, onOpenMap }: FlightHudPro
           <span className="journey-goal"><small>{journey.title}</small><strong className="numeric">{projection}%</strong></span>
         </div>
         <div className="flight-actions">
-          <button className="play-button" type="button" onClick={play} data-testid="play-flight"><i>▶</i><span>PLAY</span></button>
           <button className="checkin-button" type="button" onClick={onOpenHabits} data-testid="primary-action"><span>HEUTE</span><strong>{rated}/{due.length} HABITS</strong></button>
         </div>
         <div className="swipe-edges"><button type="button" onClick={onOpenHabits}>‹ HABITS</button><span>•</span><button type="button" onClick={onOpenStats}>STATS ›</button></div>

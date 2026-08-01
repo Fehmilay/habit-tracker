@@ -57,7 +57,7 @@ test.describe('Flight Habit product loop', () => {
     await openFresh(page)
     await page.getByTestId('play-flight').click()
     await expect(page.getByTestId('game-layer')).toBeVisible()
-    await expect(page.getByText('Daumen bewegen · Ringe treffen')).toBeVisible()
+    await expect(page.getByText('Mit dem Daumen lenken')).toBeVisible()
     await page.waitForTimeout(2300)
     const zone = page.getByTestId('thumb-zone')
     const box = await zone.boundingBox()
@@ -68,7 +68,7 @@ test.describe('Flight Habit product loop', () => {
       await page.mouse.move(box.x + box.width * 0.78, box.y + box.height * 0.28, { steps: 8 })
       await page.mouse.up()
     }
-    await expect(page.getByText('Habit Flight', { exact: true })).toBeVisible()
+    await expect(page.getByText('NÄCHSTER HABIT-RING')).toBeVisible()
     await page.getByRole('button', { name: '×' }).click()
     await expect(page.getByTestId('game-layer')).toHaveCount(0)
   })

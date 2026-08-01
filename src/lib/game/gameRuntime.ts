@@ -21,3 +21,17 @@ export function resetGameRuntime(): void {
   gameRuntime.planeY = 0
   gameRuntime.travel = 0
 }
+
+export function thumbInputFromDrag(deltaX: number, deltaY: number, radius = 72) {
+  const safeRadius = Math.max(1, radius)
+  const distance = Math.hypot(deltaX, deltaY)
+  const scale = distance > safeRadius ? safeRadius / distance : 1
+  const displayX = deltaX * scale
+  const displayY = deltaY * scale
+  return {
+    displayX,
+    displayY,
+    inputX: displayX / safeRadius,
+    inputY: -displayY / safeRadius,
+  }
+}

@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { gameRuntime } from '@/lib/game/gameRuntime'
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { gameRuntime, thumbInputFromDrag } from '@/lib/game/gameRuntime'
 import { useJourneyStore } from '@/store/journeyStore'
 
 export function GameOverlay() {
@@ -13,10 +13,14 @@ export function GameOverlay() {
   const combo = useJourneyStore((state) => state.gameCombo)
   const bestCombo = useJourneyStore((state) => state.gameBestCombo)
   const progress = useJourneyStore((state) => state.progress)
+  const habits = useJourneyStore((state) => state.habits)
   const beginGame = useJourneyStore((state) => state.beginGame)
   const startGame = useJourneyStore((state) => state.startGame)
   const exitGame = useJourneyStore((state) => state.exitGame)
   const [countdown, setCountdown] = useState(3)
+  const dragStart = useRef<{ x: number; y: number } | null>(null)
+  const stickRef = useRef<HTMLElement>(null)
+  const activeHabit = habits.find((habit) => habit.id === ringIds[ringIndex])
 
   useEffect(() => {
     if (gameMode !== 'countdown') return
@@ -28,6 +32,70 @@ export function GameOverlay() {
     ]
     return () => timers.forEach(window.clearTimeout)
   }, [beginGame, gameMode])
+
+  useEffect(() => {
+    if (gameMode !== 'playing') return
+    const pressed = new Set<string>()
+    const updateKeyboardInput = () => {
+      gameRuntime.inputX = Number(pressed.has('arrowright') || pressed.has('d')) - Number(pressed.has('arrowleft') || pressed.has('a'))
+      gameRuntime.inputY = Number(pressed.has('arrowup') || pressed.has('w')) - Number(pressed.has('arrowdown') || pressed.has('s'))
+    }
+    const keyDown = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase()
+      if (!['arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'w', 'a', 's', 'd'].includes(key)) return
+      event.preventDefault()
+      pressed.add(key)
+      updateKeyboardInput()
+    }
+    const keyUp = (event: KeyboardEvent) => {
+      pressed.delete(event.key.toLowerCase())
+      updateKeyboardInput()
+    }
+    window.addEventListener('keydown', keyDown)
+    window.addEventListener('keyup', keyUp)
+    return () => {
+      window.removeEventListener('keydown', keyDown)
+      window.removeEventListener('keyup', keyUp)
+      gameRuntime.inputX = 0
+      gameRuntime.inputY = 0
+    }
+  }, [gameMode])
+
+  const setStick = (x: number, y: number, active: boolean) => {
+    if (!stickRef.current) return
+    stickRef.current.style.setProperty('--stick-x', `${x}px`)
+    stickRef.current.style.setProperty('--stick-y', `${y}px`)
+    stickRef.current.dataset.active = String(active)
+  }
+
+  const beginThumbControl = (event: ReactPointerEvent<HTMLDivElement>) => {
+    event.currentTarget.setPointerCapture(event.pointerId)
+    const box = event.currentTarget.getBoundingClientRect()
+    dragStart.current = { x: event.clientX, y: event.clientY }
+    if (stickRef.current) {
+      stickRef.current.style.left = `${event.clientX - box.left}px`
+      stickRef.current.style.top = `${event.clientY - box.top}px`
+    }
+    gameRuntime.inputX = 0
+    gameRuntime.inputY = 0
+    setStick(0, 0, true)
+  }
+
+  const moveThumbControl = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!dragStart.current || !event.currentTarget.hasPointerCapture(event.pointerId)) return
+    const input = thumbInputFromDrag(event.clientX - dragStart.current.x, event.clientY - dragStart.current.y)
+    gameRuntime.inputX = input.inputX
+    gameRuntime.inputY = input.inputY
+    setStick(input.displayX, input.displayY, true)
+  }
+
+  const endThumbControl = (event?: ReactPointerEvent<HTMLDivElement>) => {
+    if (event?.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+    dragStart.current = null
+    gameRuntime.inputX = 0
+    gameRuntime.inputY = 0
+    setStick(0, 0, false)
+  }
 
   if (gameMode === 'idle') return null
 
@@ -50,24 +118,23 @@ export function GameOverlay() {
         <div><p className="label-caps-micro">Habit Flight · Level {progress.level}</p><strong className="numeric">{Math.min(ringIndex + 1, ringIds.length)}/{ringIds.length}</strong></div>
         <span className="game-live-score"><strong className="numeric">{score}</strong>{combo > 1 ? <em>×{combo}</em> : null}</span>
       </div>
-      {gameMode === 'countdown' ? <div className="game-countdown"><span className="numeric">{countdown}</span><p>Deine Habits treffen</p></div> : null}
-      <div
-        className="thumb-zone"
-        data-testid="thumb-zone"
-        onPointerDown={(event) => event.currentTarget.setPointerCapture(event.pointerId)}
-        onPointerMove={(event) => {
-          if (!event.currentTarget.hasPointerCapture(event.pointerId)) return
-          const box = event.currentTarget.getBoundingClientRect()
-          gameRuntime.inputX = Math.max(-1, Math.min(1, ((event.clientX - box.left) / box.width - 0.5) * 2))
-          gameRuntime.inputY = Math.max(-1, Math.min(1, -(((event.clientY - box.top) / box.height - 0.5) * 2)))
-        }}
-        onPointerUp={(event) => {
-          event.currentTarget.releasePointerCapture(event.pointerId)
-          gameRuntime.inputX = 0
-          gameRuntime.inputY = 0
-        }}
-        onPointerCancel={() => { gameRuntime.inputX = 0; gameRuntime.inputY = 0 }}
-      ><span>STEER</span></div>
+      {activeHabit ? <div className="game-habit-prompt"><span>NÄCHSTER HABIT-RING</span><strong>{activeHabit.icon} {activeHabit.name}</strong><small>{activeHabit.cue}</small></div> : null}
+      {gameMode === 'countdown' ? <div className="game-countdown"><span className="numeric">{countdown}</span><p>Mit dem Daumen lenken</p><small>Ziehe im unteren Bildschirmbereich</small></div> : null}
+      {gameMode === 'playing' ? (
+        <div
+          className="thumb-zone"
+          data-testid="thumb-zone"
+          aria-label="Steuerfläche: Ziehen, um das Flugzeug zu lenken"
+          onPointerDown={beginThumbControl}
+          onPointerMove={moveThumbControl}
+          onPointerUp={endThumbControl}
+          onPointerCancel={endThumbControl}
+          onLostPointerCapture={() => endThumbControl()}
+        >
+          <span className="thumb-instruction">ZIEHEN ZUM LENKEN</span>
+          <i ref={stickRef} className="thumb-stick" data-active="false" aria-hidden="true" />
+        </div>
+      ) : null}
     </div>
   )
 }
