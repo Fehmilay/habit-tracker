@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from 'framer-motion'
 import { motionEase } from '@/lib/design/tokens'
+import { fuelForHabitStatus } from '@/lib/game/economy'
 import { projectedGoalValue } from '@/lib/journey/projection'
 import type { HabitStatus } from '@/lib/journey/types'
 import { deviationStatusLabel, formatDeviation } from '@/lib/flight/formatDeviation'
@@ -34,7 +35,7 @@ export function FlightSequenceOverlay({ onSkip }: { onSkip: () => void }) {
             <motion.ul key="events" className="sequence-events" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               {record.events.map((event, index) => (
                 <motion.li key={`${event.habitId}-${index}`} initial={{ opacity: 0, y: 14 }} animate={{ opacity: index <= activeEventIndex ? 1 : 0, y: index <= activeEventIndex ? 0 : 14 }} transition={{ duration: 0.38, ease: motionEase.decelerate }}>
-                  <span><strong>{event.icon} {event.label}</strong><small>{STATUS_LABELS[event.status]}</small></span>
+                  <span><strong>{event.icon} {event.label}</strong><small>{STATUS_LABELS[event.status]}{fuelForHabitStatus(event.status) > 0 ? ` · +${fuelForHabitStatus(event.status)} Treibstoff` : ''}</small></span>
                   <b className="numeric">{event.degrees === 0 ? '0°' : formatDeviation(event.degrees)}</b>
                 </motion.li>
               ))}

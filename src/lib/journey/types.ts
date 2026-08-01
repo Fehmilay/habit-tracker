@@ -46,6 +46,7 @@ export interface DailyFlightRecord {
   crossTrackKm: number
   completionRate: number
   events: DeviationEvent[]
+  fuelEarned?: number
   completedAt: string
 }
 
@@ -65,6 +66,31 @@ export interface HabitGameProgress {
   experience: number
   level: number
   bestCombo: number
+  fuel: number
+  totalFuelEarned: number
+  successfulLandings: number
+}
+
+export type RecoveryMissionStatus = 'available' | 'completed'
+
+export interface RecoveryMission {
+  id: string
+  sourceDate: string
+  habitId: string
+  habitName: string
+  habitIcon: string
+  actionLabel: string
+  durationMinutes: number
+  recoveryDegrees: number
+  status: RecoveryMissionStatus
+  completedAt?: string
+}
+
+export interface CycleLandingResult {
+  cycle: number
+  completionPercent: number
+  grade: 'centerline' | 'safe' | 'hard' | 'alternate'
+  landedAt: string
 }
 
 export type FocusFlightStatus = 'flying' | 'landed' | 'crashed'
@@ -77,4 +103,7 @@ export interface FocusFlight {
   endsAt: number
   hiddenAt: number | null
   status: FocusFlightStatus
+  kind?: 'habit' | 'recovery'
+  recoveryMissionId?: string
+  recoveryDegrees?: number
 }

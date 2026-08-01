@@ -6,6 +6,7 @@ import { motionEase } from '@/lib/design/tokens'
 import { daysBetween, flightCycleProgress, isHabitDue, localDateKey } from '@/lib/journey/date'
 import { averageCompletion } from '@/lib/journey/projection'
 import { formatKilometres } from '@/lib/flight/formatDeviation'
+import { GAME_FUEL_COST } from '@/lib/game/economy'
 import { selectionHaptic } from '@/lib/native/ios'
 import { useFlightStore } from '@/store/flightStore'
 import { useJourneyStore } from '@/store/journeyStore'
@@ -14,9 +15,10 @@ interface FlightHudProps {
   onOpenHabits: () => void
   onOpenStats: () => void
   onOpenMap: () => void
+  onStartLanding: () => void
 }
 
-export function FlightHud({ onOpenHabits, onOpenStats, onOpenMap }: FlightHudProps) {
+export function FlightHud({ onOpenHabits, onOpenStats, onOpenMap, onStartLanding }: FlightHudProps) {
   const sequenceRunning = useFlightStore((state) => state.sequenceRunning)
   const animationPhase = useFlightStore((state) => state.animationPhase)
   const journey = useJourneyStore((state) => state.journey)
@@ -40,10 +42,11 @@ export function FlightHud({ onOpenHabits, onOpenStats, onOpenMap }: FlightHudPro
   const remainingDistance = Math.round(journey.totalDistanceKm * (remainingDays / journey.totalDays))
   const projection = Math.round(averageCompletion(records.slice(-30)) * 100)
   const dimmed = sequenceRunning && animationPhase !== 'idle'
+  const canPlay = learnableHabits.length > 0 && progress.fuel >= GAME_FUEL_COST
 
   const play = () => {
     const ringIds = learnableHabits.map((habit) => habit.id)
-    if (ringIds.length === 0) return
+    if (!canPlay || ringIds.length === 0) return
     selectionHaptic()
     startGame(ringIds)
   }
@@ -56,12 +59,21 @@ export function FlightHud({ onOpenHabits, onOpenStats, onOpenMap }: FlightHudPro
           <span>{journey.destinationCity} · Weltkarte</span>
           <small className="numeric">{formatKilometres(remainingDistance)} KM VERBLEIBEND</small>
         </button>
-        <div className="flight-cycle-timer" data-testid="flight-cycle-timer" aria-label={`30-Tage-Flug, Tag ${flightCycle.day}, noch ${flightCycle.remainingDays} Tage`}>
-          <span>{dateLabel}</span>
-          <strong className="numeric">TAG {flightCycle.day}<b>/30</b></strong>
-          <i aria-hidden="true"><b style={{ width: `${flightCycle.progress * 100}%` }} /></i>
-          <small>{flightCycle.remainingDays === 0 ? 'FINALTAG' : `NOCH ${flightCycle.remainingDays} TAGE`}</small>
-        </div>
+        {flightCycle.day === 30 ? (
+          <button className="flight-cycle-timer flight-cycle-final" type="button" onClick={onStartLanding} data-testid="flight-cycle-timer" aria-label="30-Tage-Landeanflug starten">
+            <span>{dateLabel}</span>
+            <strong className="numeric">TAG 30<b>/30</b></strong>
+            <i aria-hidden="true"><b style={{ width: '100%' }} /></i>
+            <small>JETZT LANDEN</small>
+          </button>
+        ) : (
+          <div className="flight-cycle-timer" data-testid="flight-cycle-timer" aria-label={`30-Tage-Flug, Tag ${flightCycle.day}, noch ${flightCycle.remainingDays} Tage`}>
+            <span>{dateLabel}</span>
+            <strong className="numeric">TAG {flightCycle.day}<b>/30</b></strong>
+            <i aria-hidden="true"><b style={{ width: `${flightCycle.progress * 100}%` }} /></i>
+            <small>{`NOCH ${flightCycle.remainingDays} TAGE`}</small>
+          </div>
+        )}
         <button type="button" className="stats-shortcut" onClick={onOpenStats} aria-label="Insights öffnen">↗</button>
       </motion.header>
 
@@ -73,14 +85,14 @@ export function FlightHud({ onOpenHabits, onOpenStats, onOpenMap }: FlightHudPro
         className="aircraft-play-button"
         type="button"
         onClick={play}
-        disabled={learnableHabits.length === 0}
+        disabled={!canPlay}
         animate={{ opacity: dimmed ? 0.1 : 1 }}
         transition={{ duration: 0.4, ease: motionEase.standard }}
         data-testid="play-flight"
-        aria-label={`Habit Flight mit ${learnableHabits.length} Habit-Ringen starten`}
+        aria-label={canPlay ? `Habit Flight mit ${learnableHabits.length} Habit-Ringen starten, kostet ${GAME_FUEL_COST} Treibstoff` : 'Erst Habit-Treibstoff durch echte Abschlüsse sammeln'}
       >
         <i aria-hidden="true">▶</i>
-        <span><strong>HABIT FLIGHT</strong><small>{learnableHabits.length} RINGE</small></span>
+        <span><strong>HABIT FLIGHT</strong><small>⛽ {progress.fuel}/100 · −{GAME_FUEL_COST}</small></span>
       </motion.button>
 
       <motion.footer animate={{ opacity: dimmed ? 0.1 : 1 }} transition={{ duration: 0.4, ease: motionEase.standard }}>

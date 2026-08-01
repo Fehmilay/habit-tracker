@@ -25,6 +25,7 @@ export function HabitRingCourse() {
   const gameMode = useJourneyStore((state) => state.gameMode)
   const ringIds = useJourneyStore((state) => state.gameRingIds)
   const ringIndex = useJourneyStore((state) => state.gameRingIndex)
+  const ringResults = useJourneyStore((state) => state.gameRingResults)
   const habits = useJourneyStore((state) => state.habits)
   const registerRing = useJourneyStore((state) => state.registerGameRing)
   const finishGame = useJourneyStore((state) => state.finishGame)
@@ -72,17 +73,19 @@ export function HabitRingCourse() {
     <group name="habit-ring-course">
       {rings.map((habit, index) => {
         const pattern = PATTERN[index % PATTERN.length]
+        const result = ringResults[index]
+        const ringColor = result === true ? '#2fe0b0' : result === false ? '#e2555f' : index === ringIndex ? '#c4e8ff' : '#2f6d99'
         return (
           <group key={`${habit.id}-${index}`} ref={(group) => { groups.current[index] = group }} position={[pattern.x, pattern.y, FIRST_RING_Z - index * RING_SPACING]}>
             <mesh>
               <torusGeometry args={[3.5, 0.18, 12, 64]} />
-              <meshBasicMaterial color={index === ringIndex ? '#c4e8ff' : '#2f6d99'} transparent opacity={index < ringIndex ? 0.15 : 0.9} blending={AdditiveBlending} depthWrite={false} toneMapped={false} />
+              <meshBasicMaterial color={ringColor} transparent opacity={index < ringIndex ? 0.7 : 0.9} blending={AdditiveBlending} depthWrite={false} toneMapped={false} />
             </mesh>
             <mesh>
               <torusGeometry args={[3.75, 0.055, 8, 64]} />
               <meshBasicMaterial color="#7cc9ff" transparent opacity={0.48} blending={AdditiveBlending} depthWrite={false} toneMapped={false} />
             </mesh>
-            <SceneLabelSprite text={`${habit.icon} ${habit.name}`} subtext={habit.cue} position={[0, 5.5, 0]} scale={[15, 3.75, 1]} />
+            <SceneLabelSprite text={`${habit.icon} ${habit.name}`} subtext={result === true ? 'GETROFFEN · IM KOPF VERANKERT' : result === false ? 'VERPASST · HABIT BLEIBT OFFEN' : habit.cue} color={ringColor} position={[0, 5.5, 0]} scale={[15, 3.75, 1]} />
           </group>
         )
       })}

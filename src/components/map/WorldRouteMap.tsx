@@ -1,14 +1,21 @@
 'use client'
 
-import * as maplibregl from 'maplibre-gl'
-import type { LngLatLike, Map as MapLibreMap } from 'maplibre-gl'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { feature } from 'topojson-client'
+import type { Feature, FeatureCollection, Geometry, Position } from 'geojson'
+import type { Topology } from 'topojson-specification'
+import worldTopology from 'world-atlas/land-110m.json'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AIRPORTS, airportByIata } from '@/lib/maps/airports'
 import { useJourneyStore } from '@/store/journeyStore'
 
-const MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty'
+const MAP_WIDTH = 1000
+const MAP_HEIGHT = 500
 
-function greatCircle(start: [number, number], end: [number, number], steps = 120): [number, number][] {
+function project([longitude, latitude]: [number, number]): [number, number] {
+  return [((longitude + 180) / 360) * MAP_WIDTH, ((90 - latitude) / 180) * MAP_HEIGHT]
+}
+
+function greatCircle(start: [number, number], end: [number, number], steps = 140): [number, number][] {
   const toRadians = (value: number) => value * Math.PI / 180
   const toDegrees = (value: number) => value * 180 / Math.PI
   const [lon1, lat1] = start.map(toRadians)
@@ -26,112 +33,103 @@ function greatCircle(start: [number, number], end: [number, number], steps = 120
   }) as [number, number][]
 }
 
-function bearing(from: [number, number], to: [number, number]): number {
-  const radians = (value: number) => value * Math.PI / 180
-  const y = Math.sin(radians(to[0] - from[0])) * Math.cos(radians(to[1]))
-  const x = Math.cos(radians(from[1])) * Math.sin(radians(to[1])) - Math.sin(radians(from[1])) * Math.cos(radians(to[1])) * Math.cos(radians(to[0] - from[0]))
-  return Math.atan2(y, x) * 180 / Math.PI
+function polygonRings(geometry: Geometry): Position[][] {
+  if (geometry.type === 'Polygon') return geometry.coordinates
+  if (geometry.type === 'MultiPolygon') return geometry.coordinates.flat()
+  return []
+}
+
+function ringPath(ring: Position[]): string {
+  return ring.map((position, index) => {
+    const [x, y] = project([position[0], position[1]])
+    return `${index === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
+  }).join(' ') + ' Z'
+}
+
+const topology = worldTopology as unknown as Topology
+const landFeature = feature(topology, topology.objects.land) as Feature<Geometry> | FeatureCollection<Geometry>
+const landPath = (landFeature.type === 'FeatureCollection' ? landFeature.features : [landFeature])
+  .flatMap((item) => polygonRings(item.geometry))
+  .map(ringPath)
+  .join(' ')
+
+function splitRouteAtDateline(points: [number, number][]): [number, number][][] {
+  const segments: [number, number][][] = [[]]
+  points.forEach((point, index) => {
+    if (index > 0 && Math.abs(point[0] - points[index - 1][0]) > 180) segments.push([])
+    segments.at(-1)?.push(point)
+  })
+  return segments
+}
+
+function pathFromPoints(points: [number, number][]): string {
+  return points.map((point, index) => {
+    const [x, y] = project(point)
+    return `${index === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
+  }).join(' ')
 }
 
 export default function WorldRouteMap({ onClose }: { onClose: () => void }) {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const mapRef = useRef<MapLibreMap | null>(null)
-  const markerRef = useRef<maplibregl.Marker | null>(null)
   const frameRef = useRef<number | null>(null)
   const journey = useJourneyStore((state) => state.journey)
-  const [ready, setReady] = useState(false)
-  const [mapError, setMapError] = useState(false)
   const [playing, setPlaying] = useState(false)
   const [progress, setProgress] = useState(0)
 
   const origin = airportByIata(journey.originIata, AIRPORTS[0])
   const destination = airportByIata(journey.destinationIata, AIRPORTS[5])
   const route = useMemo(() => greatCircle(origin.coordinates, destination.coordinates), [destination.coordinates, origin.coordinates])
+  const routeSegments = useMemo(() => splitRouteAtDateline(route), [route])
+  const planePoint = project(route[Math.min(route.length - 1, Math.floor(progress * (route.length - 1)))])
+  const originPoint = project(origin.coordinates)
+  const destinationPoint = project(destination.coordinates)
 
-  const fitRoute = useCallback(() => {
-    const map = mapRef.current
-    if (!map) return
-    const bounds = route.reduce((current, point) => current.extend(point as LngLatLike), new maplibregl.LngLatBounds(route[0], route[0]))
-    map.fitBounds(bounds, { padding: { top: 130, right: 44, bottom: 180, left: 44 }, duration: 900, maxZoom: 5 })
-  }, [route])
-
-  useEffect(() => {
-    if (!containerRef.current) return
-    const map = new maplibregl.Map({
-      container: containerRef.current,
-      style: MAP_STYLE,
-      center: origin.coordinates,
-      zoom: 2.2,
-      pitch: 34,
-      attributionControl: { compact: true },
-    })
-    mapRef.current = map
-    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right')
-    const plane = document.createElement('div')
-    plane.className = 'world-map-plane'
-    plane.textContent = '✈'
-    const marker = new maplibregl.Marker({ element: plane, rotationAlignment: 'map' }).setLngLat(origin.coordinates).addTo(map)
-    markerRef.current = marker
-
-    map.on('load', () => {
-      map.addSource('flight-route', { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: route } } })
-      map.addLayer({ id: 'flight-route-glow', type: 'line', source: 'flight-route', paint: { 'line-color': '#7cc9ff', 'line-width': 8, 'line-opacity': 0.18 } })
-      map.addLayer({ id: 'flight-route', type: 'line', source: 'flight-route', paint: { 'line-color': '#c4e8ff', 'line-width': 2.5, 'line-opacity': 0.9 } })
-      setReady(true)
-      window.setTimeout(fitRoute, 50)
-    })
-    map.on('error', () => {
-      if (!map.loaded()) setMapError(true)
-    })
-
-    return () => {
-      if (frameRef.current) window.cancelAnimationFrame(frameRef.current)
-      marker.remove()
-      map.remove()
-      mapRef.current = null
-    }
-  }, [fitRoute, origin.coordinates, route])
+  useEffect(() => () => {
+    if (frameRef.current) window.cancelAnimationFrame(frameRef.current)
+  }, [])
 
   const startFlight = () => {
-    if (!ready || playing) return
+    if (playing) return
     setPlaying(true)
+    setProgress(0)
     const startedAt = performance.now()
-    const duration = 18_000
-    let lastCameraUpdate = 0
     const animate = (time: number) => {
-      const value = Math.min(1, (time - startedAt) / duration)
+      const value = Math.min(1, (time - startedAt) / 12_000)
       const eased = value < 0.5 ? 2 * value * value : 1 - (-2 * value + 2) ** 2 / 2
-      const index = Math.min(route.length - 1, Math.floor(eased * (route.length - 1)))
-      const point = route[index]
-      const next = route[Math.min(route.length - 1, index + 1)]
-      markerRef.current?.setLngLat(point).setRotation(bearing(point, next))
-      setProgress(value)
-      if (time - lastCameraUpdate > 220) {
-        mapRef.current?.easeTo({ center: point, zoom: 4.6, pitch: 58, bearing: bearing(point, next), duration: 300, essential: true })
-        lastCameraUpdate = time
-      }
+      setProgress(eased)
       if (value < 1) frameRef.current = window.requestAnimationFrame(animate)
-      else {
-        setPlaying(false)
-        window.setTimeout(fitRoute, 600)
-      }
+      else setPlaying(false)
     }
     frameRef.current = window.requestAnimationFrame(animate)
   }
 
   return (
-    <section className="world-map-layer" aria-label="Weltflugkarte">
-      <div ref={containerRef} className="world-map-canvas" />
-      {!ready ? <div className="world-map-loading"><strong>{mapError ? 'Karte gerade nicht erreichbar' : 'Weltkarte wird geladen'}</strong><span>{mapError ? 'Prüfe deine Verbindung und versuche es erneut.' : 'Route wird vorbereitet …'}</span></div> : null}
+    <section className="world-map-layer" aria-label="Offline-Weltflugkarte">
+      <div className="world-map-canvas world-map-offline">
+        <svg viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`} preserveAspectRatio="xMidYMid slice" role="img" aria-label={`Flugroute von ${origin.city} nach ${destination.city}`}>
+          <defs>
+            <radialGradient id="world-ocean" cx="50%" cy="45%" r="75%"><stop offset="0" stopColor="#12324b" /><stop offset="1" stopColor="#030914" /></radialGradient>
+            <linearGradient id="world-land" x1="0" y1="0" x2="0" y2="1"><stop stopColor="#1c4b4c" /><stop offset="1" stopColor="#0c252c" /></linearGradient>
+            <filter id="route-glow"><feGaussianBlur stdDeviation="5" /></filter>
+          </defs>
+          <rect width={MAP_WIDTH} height={MAP_HEIGHT} fill="url(#world-ocean)" />
+          <g className="world-map-grid" aria-hidden="true">{[-60, -30, 0, 30, 60].map((latitude) => { const [, y] = project([0, latitude]); return <line key={latitude} x1="0" x2={MAP_WIDTH} y1={y} y2={y} /> })}</g>
+          <path className="world-map-land" d={landPath} fill="url(#world-land)" fillRule="evenodd" />
+          {routeSegments.map((segment, index) => <path key={`glow-${index}`} className="world-route-glow" d={pathFromPoints(segment)} filter="url(#route-glow)" />)}
+          {routeSegments.map((segment, index) => <path key={`route-${index}`} className="world-route-line" d={pathFromPoints(segment)} />)}
+          <g className="world-airport-marker" transform={`translate(${originPoint[0]} ${originPoint[1]})`}><circle r="8" /><circle r="3" /><text y="-14">{origin.iata}</text></g>
+          <g className="world-airport-marker destination" transform={`translate(${destinationPoint[0]} ${destinationPoint[1]})`}><circle r="10" /><circle r="3" /><text y="-16">{destination.iata}</text></g>
+          <g className="world-map-plane" transform={`translate(${planePoint[0]} ${planePoint[1]})`}><circle r="13" /><text y="5">✈</text></g>
+        </svg>
+      </div>
       <header className="world-map-header">
         <button type="button" onClick={onClose} aria-label="Weltkarte schließen">×</button>
-        <div><span>DEINE WELTROUTE</span><strong>{origin.iata} → {destination.iata}</strong></div>
+        <div><span>DEINE OFFLINE-WELTROUTE</span><strong>{origin.iata} → {destination.iata}</strong></div>
         <span>{Math.round(journey.totalDistanceKm).toLocaleString('de-DE')} km</span>
       </header>
       <div className="world-map-card">
         <div><span>{origin.city}</span><i /><span>{destination.city}</span></div>
-        <button type="button" className="primary-button" onClick={startFlight} disabled={!ready || playing}>{playing ? `${Math.round(progress * 100)}% UNTERWEGS` : '▶ WELTFLUG STARTEN'}</button>
-        <small>Karten: OpenFreeMap · OpenStreetMap</small>
+        <button type="button" className="primary-button" onClick={startFlight} disabled={playing}>{playing ? `${Math.round(progress * 100)}% UNTERWEGS` : progress >= 1 ? '↻ NOCHMAL FLIEGEN' : '▶ WELTFLUG STARTEN'}</button>
+        <small>Offline verfügbar · echte Flughafenkoordinaten · keine externen Kartendienste</small>
       </div>
     </section>
   )

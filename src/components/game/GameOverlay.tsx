@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { gameRuntime, thumbInputFromDrag } from '@/lib/game/gameRuntime'
+import { GAME_FUEL_COST } from '@/lib/game/economy'
 import { useJourneyStore } from '@/store/journeyStore'
 
 export function GameOverlay() {
@@ -21,6 +22,7 @@ export function GameOverlay() {
   const dragStart = useRef<{ x: number; y: number } | null>(null)
   const stickRef = useRef<HTMLElement>(null)
   const activeHabit = habits.find((habit) => habit.id === ringIds[ringIndex])
+  const canReplay = progress.fuel >= GAME_FUEL_COST
 
   useEffect(() => {
     if (gameMode !== 'countdown') return
@@ -105,8 +107,9 @@ export function GameOverlay() {
         <p className="label-caps">Habit Flight · Level {progress.level}</p>
         <strong className="numeric">{score}</strong>
         <span>{hits}/{ringIds.length} Habits getroffen · +{hits * 100} XP</span>
-        <div className="game-reward-grid"><span>⚡ Fokus +{hits * 100}</span><span>🔥 Beste Combo {bestCombo}</span><span>✈ Level {progress.level}</span></div>
-        <div><button className="primary-button" type="button" onClick={() => startGame(ringIds)}>Nochmal fliegen</button><button className="text-button" type="button" onClick={exitGame}>Zurück zum Kurs</button></div>
+        <div className="game-reward-grid"><span>⚡ XP +{hits * 100}</span><span>🔥 Beste Combo {bestCombo}</span><span>⛽ Tank {progress.fuel}/100</span></div>
+        <p className="game-truth-note">Der Flug trainiert deine Habits. Nur echte Abschlüsse erzeugen Treibstoff und verändern deinen Kurs.</p>
+        <div><button className="primary-button" type="button" disabled={!canReplay} onClick={() => startGame(ringIds)}>{canReplay ? `Nochmal fliegen · −${GAME_FUEL_COST}` : 'Erst Habit-Treibstoff sammeln'}</button><button className="text-button" type="button" onClick={exitGame}>Zurück zum Kurs</button></div>
       </div>
     )
   }
@@ -116,7 +119,7 @@ export function GameOverlay() {
       <div className="game-topline">
         <button type="button" onClick={exitGame}>×</button>
         <div><p className="label-caps-micro">Habit Flight · Level {progress.level}</p><strong className="numeric">{Math.min(ringIndex + 1, ringIds.length)}/{ringIds.length}</strong></div>
-        <span className="game-live-score"><strong className="numeric">{score}</strong>{combo > 1 ? <em>×{combo}</em> : null}</span>
+        <span className="game-live-score"><b>⛽ {progress.fuel}</b><strong className="numeric">{score}</strong>{combo > 1 ? <em>×{combo}</em> : null}</span>
       </div>
       {activeHabit ? <div className="game-habit-prompt"><span>NÄCHSTER HABIT-RING</span><strong>{activeHabit.icon} {activeHabit.name}</strong><small>{activeHabit.cue}</small></div> : null}
       {gameMode === 'countdown' ? <div className="game-countdown"><span className="numeric">{countdown}</span><p>Mit dem Daumen lenken</p><small>Ziehe im unteren Bildschirmbereich</small></div> : null}

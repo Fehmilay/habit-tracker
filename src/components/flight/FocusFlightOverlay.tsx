@@ -30,6 +30,7 @@ export function FocusFlightOverlay() {
   const clearFocusFlight = useJourneyStore((state) => state.clearFocusFlight)
   const exitFocusFlight = useJourneyStore((state) => state.exitFocusFlight)
   const startFocusFlight = useJourneyStore((state) => state.startFocusFlight)
+  const startRecoveryFlight = useJourneyStore((state) => state.startRecoveryFlight)
   const [now, setNow] = useState(() => Date.now())
   const warnedForStart = useRef<number | null>(null)
   const resolvedFlight = useRef<number | null>(null)
@@ -137,6 +138,7 @@ export function FocusFlightOverlay() {
     () => habits.find((candidate) => candidate.id === focusFlight?.habitId),
     [focusFlight?.habitId, habits],
   )
+  const recovery = focusFlight?.kind === 'recovery'
   const remaining = focusFlight ? Math.max(0, focusFlight.endsAt - now) : 0
   const awayRemaining = focusFlight?.hiddenAt
     ? Math.max(0, AWAY_LIMIT_MS - (now - focusFlight.hiddenAt))
@@ -173,9 +175,9 @@ export function FocusFlightOverlay() {
             <motion.div className="focus-result focus-landed-card" initial={{ scale: 0.82, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', damping: 17 }}>
               <motion.div className="landing-plane" initial={{ x: -150, y: -90, rotate: -16 }} animate={{ x: 8, y: 0, rotate: 0 }} transition={{ duration: 1.15, ease: [0.16, 1, 0.3, 1] }}>✈</motion.div>
               <div className="runway" aria-hidden="true"><i /><i /><i /></div>
-              <p className="label-caps">Saubere Landung</p>
-              <h2>{focusFlight.habitName} ist erledigt.</h2>
-              <span>{focusFlight.durationMinutes} Minuten auf Kurs · Habit abgehakt</span>
+              <p className="label-caps">{recovery ? 'Comeback gelandet' : 'Saubere Landung'}</p>
+              <h2>{recovery ? `${focusFlight.recoveryDegrees ?? 0}° Kurs zurückgeholt.` : `${focusFlight.habitName} ist erledigt.`}</h2>
+              <span>{recovery ? `Der alte Fehlschlag bleibt ehrlich bestehen · +8 Treibstoff` : `${focusFlight.durationMinutes} Minuten auf Kurs · Habit abgehakt`}</span>
               <button className="primary-button" type="button" onClick={clearFocusFlight}>Zurück zum Kurs</button>
             </motion.div>
           ) : null}
@@ -185,8 +187,8 @@ export function FocusFlightOverlay() {
               <div className="crash-mark" aria-hidden="true">↘</div>
               <p className="label-caps">Flug abgebrochen</p>
               <h2>Du warst länger als 60 Sekunden weg.</h2>
-              <span>{focusFlight.habitName} wurde nicht abgehakt.</span>
-              <button className="primary-button" type="button" onClick={() => habit && startFocusFlight(habit)}>Neu starten</button>
+              <span>{recovery ? 'Die Comeback-Mission bleibt verfügbar.' : `${focusFlight.habitName} wurde nicht abgehakt.`}</span>
+              <button className="primary-button" type="button" onClick={() => recovery && focusFlight.recoveryMissionId ? startRecoveryFlight(focusFlight.recoveryMissionId) : habit && startFocusFlight(habit)}>Neu starten</button>
               <button className="text-button" type="button" onClick={clearFocusFlight}>Zum Kurs zurück</button>
             </motion.div>
           ) : null}

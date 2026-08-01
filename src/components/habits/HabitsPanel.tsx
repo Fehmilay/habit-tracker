@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { isHabitDue, localDateKey } from '@/lib/journey/date'
 import { AIRPORTS, airportByIata, distanceBetweenAirports } from '@/lib/maps/airports'
 import { selectionHaptic } from '@/lib/native/ios'
-import type { DailyFlightRecord, Habit, HabitStatus } from '@/lib/journey/types'
+import type { DailyFlightRecord, Habit, HabitStatus, RecoveryMission } from '@/lib/journey/types'
 import { useJourneyStore } from '@/store/journeyStore'
 
 const STATUS_OPTIONS: Array<{ status: HabitStatus; label: string; symbol: string }> = [
@@ -20,15 +20,17 @@ interface HabitsPanelProps {
   onBackToFlight: () => void
   onComplete: (record: DailyFlightRecord) => void
   onStartTask: (habit: Habit) => void
+  onStartRecovery: (mission: RecoveryMission) => void
 }
 
-export function HabitsPanel({ onBackToFlight, onComplete, onStartTask }: HabitsPanelProps) {
+export function HabitsPanel({ onBackToFlight, onComplete, onStartTask, onStartRecovery }: HabitsPanelProps) {
   const habits = useJourneyStore((state) => state.habits)
   const drafts = useJourneyStore((state) => state.drafts)
   const records = useJourneyStore((state) => state.records)
   const setDraftStatus = useJourneyStore((state) => state.setDraftStatus)
   const completeToday = useJourneyStore((state) => state.completeToday)
   const importLegacyHabits = useJourneyStore((state) => state.importLegacyHabits)
+  const recoveryMissions = useJourneyStore((state) => state.recoveryMissions.filter((mission) => mission.status === 'available'))
   const [editingHabit, setEditingHabit] = useState<Habit | 'new' | null>(null)
   const [editingGoal, setEditingGoal] = useState(false)
   const [legacyAvailable, setLegacyAvailable] = useState(false)
@@ -76,6 +78,19 @@ export function HabitsPanel({ onBackToFlight, onComplete, onStartTask }: HabitsP
         })}
         {dueHabits.length === 0 ? <div className="empty-habits"><strong>Heute ist frei.</strong><span>Oder starte mit + einen neuen Habit-Flug.</span></div> : null}
       </div>
+
+      {recoveryMissions.length > 0 ? (
+        <section className="recovery-deck" aria-label="Comeback-Missionen">
+          <div><span className="label-caps-micro">ECHTE KURSKORREKTUR</span><strong>Comeback-Missionen</strong><small>Der alte Fehlschlag bleibt bestehen. Eine kurze reale Handlung holt einen Teil des Kurses zurück.</small></div>
+          {recoveryMissions.slice(0, 3).map((mission) => (
+            <article key={mission.id}>
+              <span>{mission.habitIcon}</span>
+              <div><strong>{mission.habitName}</strong><small>{mission.actionLabel}</small><em>−{mission.recoveryDegrees}° · +8 Treibstoff</em></div>
+              <button type="button" onClick={() => onStartRecovery(mission)}><small>COMEBACK</small><strong>{mission.durationMinutes} MIN</strong></button>
+            </article>
+          ))}
+        </section>
+      ) : null}
 
       <div className="habit-footer">
         {legacyAvailable ? <button className="text-button" type="button" onClick={() => { if (importLegacyHabits() > 0) setLegacyAvailable(false) }}>Alte Habits übernehmen</button> : null}

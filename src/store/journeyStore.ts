@@ -2,12 +2,14 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { clampFuel, fuelEarnedForStatuses, GAME_FUEL_COST, RECOVERY_FUEL_REWARD, STARTER_FUEL } from '@/lib/game/economy'
 import { AIRCRAFT, DEFAULT_HABITS, DEFAULT_JOURNEY } from '@/lib/journey/defaults'
 import { calculateDailyDeviation } from '@/lib/journey/deviation'
 import { activeWeekCount, isHabitDue, localDateKey } from '@/lib/journey/date'
 import { crossTrackDistanceKm } from '@/lib/journey/projection'
 import type {
   AircraftId,
+  CycleLandingResult,
   DailyFlightRecord,
   FocusFlight,
   GameMode,
@@ -15,6 +17,7 @@ import type {
   Habit,
   HabitStatus,
   JourneyGoal,
+  RecoveryMission,
 } from '@/lib/journey/types'
 
 interface JourneyStoreState {
@@ -35,9 +38,12 @@ interface JourneyStoreState {
   gameHits: number
   gameCombo: number
   gameBestCombo: number
+  gameRingResults: boolean[]
   progress: HabitGameProgress
 
   focusFlight: FocusFlight | null
+  recoveryMissions: RecoveryMission[]
+  lastLanding: CycleLandingResult | null
 
   setHydrated: (hydrated: boolean) => void
   initializeJourney: () => void
@@ -56,12 +62,23 @@ interface JourneyStoreState {
   finishGame: () => void
   exitGame: () => void
   startFocusFlight: (habit: Habit) => void
+  startRecoveryFlight: (missionId: string) => void
   setFocusHiddenAt: (hiddenAt: number | null) => void
   landFocusFlight: () => void
   crashFocusFlight: () => void
   exitFocusFlight: () => void
   clearFocusFlight: () => void
+  recordLanding: (result: CycleLandingResult) => void
   selectAircraft: (id: AircraftId) => void
+}
+
+const DEFAULT_PROGRESS: HabitGameProgress = {
+  experience: 0,
+  level: 1,
+  bestCombo: 0,
+  fuel: STARTER_FUEL,
+  totalFuelEarned: 0,
+  successfulLandings: 0,
 }
 
 function makeId(prefix: string): string {
@@ -91,9 +108,12 @@ export const useJourneyStore = create<JourneyStoreState>()(
       gameHits: 0,
       gameCombo: 0,
       gameBestCombo: 0,
-      progress: { experience: 0, level: 1, bestCombo: 0 },
+      gameRingResults: [],
+      progress: DEFAULT_PROGRESS,
 
       focusFlight: null,
+      recoveryMissions: [],
+      lastLanding: null,
 
       setHydrated: (hydrated) => set({ hydrated }),
       initializeJourney: () => {
@@ -162,11 +182,26 @@ export const useJourneyStore = create<JourneyStoreState>()(
           dueHabits,
           state.drafts,
         )
+        const statuses = Object.fromEntries(
+          dueHabits.map((habit) => [habit.id, state.drafts[habit.id]]),
+        )
+        const fuelEarned = fuelEarnedForStatuses(statuses)
+        const recoveryMissions = dueHabits
+          .filter((habit) => state.drafts[habit.id] === 'missed')
+          .map<RecoveryMission>((habit) => ({
+            id: `recovery-${dateKey}-${habit.id}`,
+            sourceDate: dateKey,
+            habitId: habit.id,
+            habitName: habit.name,
+            habitIcon: habit.icon,
+            actionLabel: habit.cue,
+            durationMinutes: Math.max(5, Math.min(15, Math.ceil(((habit.durationMinutes ?? 25) / 3) / 5) * 5)),
+            recoveryDegrees: Math.round(Math.min(0.75, habit.impact * 0.5) * 100) / 100,
+            status: 'available',
+          }))
         const record: DailyFlightRecord = {
           date: dateKey,
-          statuses: Object.fromEntries(
-            dueHabits.map((habit) => [habit.id, state.drafts[habit.id]]),
-          ),
+          statuses,
           previousDeviationDegrees: outcome.previousDeviationDegrees,
           recoveredDegrees: outcome.recoveredDegrees,
           addedDegrees: outcome.addedDegrees,
@@ -177,6 +212,7 @@ export const useJourneyStore = create<JourneyStoreState>()(
           ),
           completionRate: outcome.completionRate,
           events: outcome.events,
+          fuelEarned,
           completedAt: new Date().toISOString(),
         }
 
@@ -185,6 +221,12 @@ export const useJourneyStore = create<JourneyStoreState>()(
           currentDeviationDegrees: record.finalDeviationDegrees,
           drafts: {},
           flightMinutes: state.flightMinutes + Math.max(5, Math.round(outcome.completionRate * 20)),
+          recoveryMissions: [...state.recoveryMissions, ...recoveryMissions],
+          progress: {
+            ...state.progress,
+            fuel: clampFuel(state.progress.fuel + fuelEarned),
+            totalFuelEarned: state.progress.totalFuelEarned + fuelEarned,
+          },
         })
         return record
       },
@@ -220,14 +262,19 @@ export const useJourneyStore = create<JourneyStoreState>()(
       },
 
       startGame: (ringIds) =>
-        set({
-          gameMode: 'countdown',
-          gameRingIds: ringIds,
-          gameRingIndex: 0,
-          gameScore: 0,
-          gameHits: 0,
-          gameCombo: 0,
-          gameBestCombo: 0,
+        set((state) => {
+          if (ringIds.length === 0 || state.progress.fuel < GAME_FUEL_COST) return state
+          return {
+            gameMode: 'countdown',
+            gameRingIds: ringIds,
+            gameRingIndex: 0,
+            gameScore: 0,
+            gameHits: 0,
+            gameCombo: 0,
+            gameBestCombo: 0,
+            gameRingResults: [],
+            progress: { ...state.progress, fuel: clampFuel(state.progress.fuel - GAME_FUEL_COST) },
+          }
         }),
       beginGame: () => set({ gameMode: 'playing' }),
       registerGameRing: (hit) =>
@@ -239,6 +286,7 @@ export const useJourneyStore = create<JourneyStoreState>()(
             gameHits: state.gameHits + (hit ? 1 : 0),
             gameCombo,
             gameBestCombo: Math.max(state.gameBestCombo, gameCombo),
+            gameRingResults: [...state.gameRingResults, hit],
           }
         }),
       finishGame: () =>
@@ -249,6 +297,7 @@ export const useJourneyStore = create<JourneyStoreState>()(
             gameMode: 'summary',
             flightMinutes: state.flightMinutes + state.gameHits * 2,
             progress: {
+              ...state.progress,
               experience,
               level: Math.floor(experience / 500) + 1,
               bestCombo: Math.max(state.progress.bestCombo, state.gameBestCombo),
@@ -264,6 +313,7 @@ export const useJourneyStore = create<JourneyStoreState>()(
           gameHits: 0,
           gameCombo: 0,
           gameBestCombo: 0,
+          gameRingResults: [],
         }),
       startFocusFlight: (habit) => {
         const startedAt = Date.now()
@@ -277,6 +327,26 @@ export const useJourneyStore = create<JourneyStoreState>()(
             endsAt: startedAt + durationMinutes * 60_000,
             hiddenAt: null,
             status: 'flying',
+            kind: 'habit',
+          },
+        })
+      },
+      startRecoveryFlight: (missionId) => {
+        const mission = get().recoveryMissions.find((candidate) => candidate.id === missionId && candidate.status === 'available')
+        if (!mission) return
+        const startedAt = Date.now()
+        set({
+          focusFlight: {
+            habitId: mission.habitId,
+            habitName: `Comeback · ${mission.habitName}`,
+            durationMinutes: mission.durationMinutes,
+            startedAt,
+            endsAt: startedAt + mission.durationMinutes * 60_000,
+            hiddenAt: null,
+            status: 'flying',
+            kind: 'recovery',
+            recoveryMissionId: mission.id,
+            recoveryDegrees: mission.recoveryDegrees,
           },
         })
       },
@@ -287,16 +357,29 @@ export const useJourneyStore = create<JourneyStoreState>()(
       landFocusFlight: () =>
         set((state) => {
           if (!state.focusFlight || state.focusFlight.status !== 'flying') return state
+          const recovery = state.focusFlight.kind === 'recovery'
           const earnedExperience = state.focusFlight.durationMinutes * 10
           const experience = state.progress.experience + earnedExperience
+          const recoveryDegrees = recovery ? state.focusFlight.recoveryDegrees ?? 0 : 0
+          const recoveryFuel = recovery ? RECOVERY_FUEL_REWARD : 0
           return {
             focusFlight: { ...state.focusFlight, hiddenAt: null, status: 'landed' },
-            drafts: { ...state.drafts, [state.focusFlight.habitId]: 'completed' },
+            drafts: recovery ? state.drafts : { ...state.drafts, [state.focusFlight.habitId]: 'completed' },
+            currentDeviationDegrees: recovery
+              ? Math.round(Math.max(0, state.currentDeviationDegrees - recoveryDegrees) * 100) / 100
+              : state.currentDeviationDegrees,
+            recoveryMissions: recovery
+              ? state.recoveryMissions.map((mission) => mission.id === state.focusFlight?.recoveryMissionId
+                ? { ...mission, status: 'completed' as const, completedAt: new Date().toISOString() }
+                : mission)
+              : state.recoveryMissions,
             flightMinutes: state.flightMinutes + state.focusFlight.durationMinutes,
             progress: {
               ...state.progress,
               experience,
               level: Math.floor(experience / 500) + 1,
+              fuel: clampFuel(state.progress.fuel + recoveryFuel),
+              totalFuelEarned: state.progress.totalFuelEarned + recoveryFuel,
             },
           }
         }),
@@ -306,6 +389,19 @@ export const useJourneyStore = create<JourneyStoreState>()(
           : state),
       exitFocusFlight: () => set({ focusFlight: null }),
       clearFocusFlight: () => set({ focusFlight: null }),
+      recordLanding: (result) =>
+        set((state) => {
+          const previousSuccessful = state.lastLanding?.cycle === result.cycle
+            && (state.lastLanding.grade === 'centerline' || state.lastLanding.grade === 'safe')
+          const successful = result.grade === 'centerline' || result.grade === 'safe'
+          return {
+            lastLanding: result,
+            progress: {
+              ...state.progress,
+              successfulLandings: state.progress.successfulLandings + (successful && !previousSuccessful ? 1 : 0),
+            },
+          }
+        }),
       selectAircraft: (id) => {
         const weeks = activeWeekCount(get().records.map((record) => record.date))
         const aircraft = AIRCRAFT.find((item) => item.id === id)
@@ -325,7 +421,29 @@ export const useJourneyStore = create<JourneyStoreState>()(
         gameHits: 0,
         gameCombo: 0,
         gameBestCombo: 0,
+        gameRingResults: [],
       }),
+      merge: (persistedState, currentState) => {
+        const saved = persistedState as Partial<JourneyStoreState>
+        const savedProgress = saved.progress
+        return {
+          ...currentState,
+          ...saved,
+          gameMode: 'idle',
+          gameRingIds: [],
+          gameRingIndex: 0,
+          gameRingResults: [],
+          progress: {
+            ...DEFAULT_PROGRESS,
+            ...savedProgress,
+            fuel: clampFuel(savedProgress?.fuel ?? STARTER_FUEL),
+            totalFuelEarned: savedProgress?.totalFuelEarned ?? 0,
+            successfulLandings: savedProgress?.successfulLandings ?? 0,
+          },
+          recoveryMissions: saved.recoveryMissions ?? [],
+          lastLanding: saved.lastLanding ?? null,
+        }
+      },
       onRehydrateStorage: () => (state) => state?.setHydrated(true),
     },
   ),

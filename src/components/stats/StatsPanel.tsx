@@ -18,6 +18,7 @@ export function StatsPanel({ onBackToFlight }: { onBackToFlight: () => void }) {
   const selectAircraft = useJourneyStore((state) => state.selectAircraft)
   const flightMinutes = useJourneyStore((state) => state.flightMinutes)
   const progress = useJourneyStore((state) => state.progress)
+  const lastLanding = useJourneyStore((state) => state.lastLanding)
   const dayIndex = Math.min(journey.totalDays, daysBetween(journey.startDate) + 1)
   const remainingDays = Math.max(0, journey.totalDays - dayIndex)
   const remainingDistance = Math.round(journey.totalDistanceKm * (remainingDays / journey.totalDays))
@@ -29,7 +30,6 @@ export function StatsPanel({ onBackToFlight }: { onBackToFlight: () => void }) {
   const repeatedDeviation = repeatedPatternDeviation(deviation, records)
   const repeatedMissKm = crossTrackDistanceKm(remainingDistance || journey.totalDistanceKm, repeatedDeviation)
   const activeWeeks = activeWeekCount(records.map((record) => record.date))
-  const xpIntoLevel = progress.experience % 500
 
   const habitRates = useMemo(() => habits.filter((habit) => !habit.archived).map((habit) => {
     const values = records.map((record) => record.statuses[habit.id]).filter(Boolean).map((status) => statusScore[status]).filter((score): score is number => score !== null)
@@ -47,7 +47,7 @@ export function StatsPanel({ onBackToFlight }: { onBackToFlight: () => void }) {
         <article><span>Wenn 7 Tage so bleiben</span><strong className="numeric">{repeatedMissKm} km</strong><small>projizierter Versatz</small></article>
       </div>
       <section className="stats-section"><div className="section-heading"><div><p className="label-caps-micro">Einfluss</p><h2>Deine Habits</h2></div><span>30 Tage</span></div><div className="habit-rate-list">{habitRates.map(({ habit, rate }) => <div key={habit.id} className="habit-rate-row"><span>{habit.icon} {habit.name}</span><div><i style={{ width: `${Math.round(rate * 100)}%` }} /></div><strong className="numeric">{Math.round(rate * 100)}%</strong></div>)}</div></section>
-      <section className="stats-section pilot-progress-section"><div className="section-heading"><div><p className="label-caps-micro">Spielstand</p><h2>Pilot Progress</h2></div><span>Level {progress.level}</span></div><div className="pilot-progress-card"><div><span>⚡ {progress.experience} XP</span><strong className="numeric">{xpIntoLevel}/500</strong><small>Beste Combo: {progress.bestCombo}</small></div><div className="pilot-xp-track"><i style={{ width: `${(xpIntoLevel / 500) * 100}%` }} /></div><p>Fokusflüge und Habit-Ringe laden deine nächste Stufe auf.</p></div></section>
+      <section className="stats-section pilot-progress-section"><div className="section-heading"><div><p className="label-caps-micro">Spielstand</p><h2>Pilot Progress</h2></div><span>Level {progress.level}</span></div><div className="pilot-progress-card"><div><span>⚡ {progress.experience} XP</span><strong className="numeric">⛽ {progress.fuel}/100</strong><small>{progress.successfulLandings} sichere 30-Tage-Landungen</small></div><div className="pilot-xp-track"><i style={{ width: `${progress.fuel}%` }} /></div><p>Nur echte Habit-Abschlüsse und Comeback-Fokusflüge füllen deinen Tank. Spielen verändert deinen realen Kurs nicht.</p>{lastLanding ? <p className="last-landing-line">Letzte Landung · Zyklus {lastLanding.cycle} · <strong className="numeric">{lastLanding.completionPercent}%</strong> · {lastLanding.grade}</p> : null}</div></section>
       <section className="stats-section hangar-section"><div className="section-heading"><div><p className="label-caps-micro">Belohnung</p><h2>Hangar</h2></div><span>{activeWeeks} aktive Wochen</span></div><div className="aircraft-carousel">{AIRCRAFT.map((aircraft) => { const unlocked = activeWeeks >= aircraft.requiredWeeks; return <button type="button" key={aircraft.id} className={selectedAircraft === aircraft.id ? 'aircraft-card selected' : 'aircraft-card'} disabled={!unlocked} onClick={() => selectAircraft(aircraft.id)} style={{ '--aircraft-accent': aircraft.accent } as React.CSSProperties}><span className="aircraft-glyph">✈</span><strong>{aircraft.name}</strong><small>{unlocked ? aircraft.caption : `Ab Woche ${aircraft.requiredWeeks}`}</small></button> })}</div></section>
       <p className="swipe-note">Nach links wischen für den Flug</p>
     </section>

@@ -6,6 +6,8 @@ import { Aircraft3D } from './Aircraft3D'
 import { AtlasTerrain } from './AtlasTerrain'
 import { ChaseCamera } from './ChaseCamera'
 import { CourseLine } from './CourseLine'
+import { DailyConfirmationRing } from './DailyConfirmationRing'
+import { RecoveryFocusRing } from './RecoveryFocusRing'
 import { DestinationAirport } from './DestinationAirport'
 import { FlightDriver } from './FlightDriver'
 import { FlightEnvironment } from './FlightEnvironment'
@@ -79,6 +81,8 @@ export default function FlightSceneCanvas({ paused = false }: { paused?: boolean
           <DestinationAirport />
         </>
       )}
+      <DailyConfirmationRing />
+      <RecoveryFocusRing />
       <Aircraft3D fuselageSegments={quality.fuselageSegments} />
     </Canvas>
   )

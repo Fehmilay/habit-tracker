@@ -16,9 +16,9 @@ In Xcode das Scheme **App** wählen, ein physisches iPhone oder einen Simulator 
 ## Datenschutzangaben
 
 - Daten werden nicht an einen Server übertragen.
-- Es gibt keine Werbung, Analyse-SDKs oder Tracker. Die optionale Weltkarte lädt Kartenkacheln von OpenFreeMap/OpenStreetMap; diese technische Verbindung wird in der Datenschutzseite offengelegt.
+- Es gibt keine Werbung, Analyse-SDKs oder Tracker. Die optionale Weltkarte und alle Fluggebiete sind lokal in der App gebündelt und benötigen keinen externen Kartendienst.
 - Ziele, Habits, Check-ins und Fokusflüge bleiben lokal auf dem Gerät.
-- App Privacy: kein Tracking und keine mit Habit-Daten verknüpften Serverdaten. Die technische Kartenverbindung muss anhand der zum Release gültigen OpenFreeMap-Datenschutzhinweise in App Store Connect angegeben werden.
+- App Privacy: kein Tracking und keine mit Habit-Daten verknüpften Serverdaten. Auch die Weltkarte läuft offline aus dem App-Bundle.
 - Datenschutz-URL nach dem Deployment: `https://<deine-domain>/privacy`
 
 ## Vor dem Absenden

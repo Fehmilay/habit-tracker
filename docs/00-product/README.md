@@ -34,7 +34,7 @@ lauffähig und damit später mit Capacitor als iOS-/Android-App verpackbar.
 
 ## Hauptansicht
 
-Die Hauptansicht ist die 3D-Flugszene aus der Verfolgerperspektive – **keine Weltkarte**
+Die Hauptansicht ist die 3D-Flugszene aus der Verfolgerperspektive. Eine optionale, offline gebündelte Weltkarte zeigt die reale Route, ohne die Hauptansicht zu ersetzen.
 und **kein Dashboard**. Die Karte ist sekundär (siehe `07-geographic-projection`).
 
 ## Risiken
