@@ -28,6 +28,7 @@ export function StatsPanel({ onBackToFlight }: { onBackToFlight: () => void }) {
   const selectedAircraft = useJourneyStore((state) => state.selectedAircraft)
   const selectAircraft = useJourneyStore((state) => state.selectAircraft)
   const flightMinutes = useJourneyStore((state) => state.flightMinutes)
+  const progress = useJourneyStore((state) => state.progress)
 
   const dayIndex = Math.min(journey.totalDays, daysBetween(journey.startDate) + 1)
   const remainingDays = Math.max(0, journey.totalDays - dayIndex)
@@ -41,6 +42,7 @@ export function StatsPanel({ onBackToFlight }: { onBackToFlight: () => void }) {
   const repeatedDeviation = repeatedPatternDeviation(deviation, records)
   const repeatedMissKm = crossTrackDistanceKm(remainingDistance || journey.totalDistanceKm, repeatedDeviation)
   const activeWeeks = activeWeekCount(records.map((record) => record.date))
+  const xpIntoLevel = progress.experience % 500
 
   const habitRates = useMemo(
     () =>
@@ -116,8 +118,15 @@ export function StatsPanel({ onBackToFlight }: { onBackToFlight: () => void }) {
           })}
         </div>
       </section>
+      <section className="stats-section pilot-progress-section">
+        <div className="section-heading"><div><p className="label-caps-micro">Spielstand</p><h2>Pilot Progress</h2></div><span>Level {progress.level}</span></div>
+        <div className="pilot-progress-card">
+          <div><span>🪙 {progress.coins} Münzen</span><strong className="numeric">{xpIntoLevel}/500 XP</strong><small>Beste Combo: {progress.bestCombo}</small></div>
+          <div className="pilot-xp-track"><i style={{ width: `${(xpIntoLevel / 500) * 100}%` }} /></div>
+          <p>Fokusflüge und getroffene Habit-Ringe laden deine nächste Stufe auf.</p>
+        </div>
+      </section>
       <p className="swipe-note">Nach links wischen für den Flug</p>
     </section>
   )
 }
-

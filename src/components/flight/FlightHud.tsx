@@ -22,6 +22,7 @@ export function FlightHud({ onOpenHabits, onOpenStats }: FlightHudProps) {
   const records = useJourneyStore((state) => state.records)
   const startGame = useJourneyStore((state) => state.startGame)
   const gameMode = useJourneyStore((state) => state.gameMode)
+  const progress = useJourneyStore((state) => state.progress)
 
   if (gameMode !== 'idle') return null
 
@@ -57,6 +58,7 @@ export function FlightHud({ onOpenHabits, onOpenStats }: FlightHudProps) {
       <motion.footer animate={{ opacity: dimmed ? 0.1 : 1 }} transition={{ duration: 0.4, ease: motionEase.standard }}>
         <div className="journey-strip">
           <span><small>REISETAG</small><strong className="numeric">{dayIndex}/{journey.totalDays}</strong></span>
+          <span className="journey-level"><small>PILOT LEVEL</small><strong className="numeric">LVL {progress.level} · 🪙 {progress.coins}</strong></span>
           <span className="journey-goal"><small>{journey.title}</small><strong className="numeric">{projection}%</strong></span>
         </div>
         <div className="flight-actions">

@@ -8,6 +8,7 @@ import { CourseLine } from './CourseLine'
 import { DestinationAirport } from './DestinationAirport'
 import { FlightDriver } from './FlightDriver'
 import { FlightEnvironment } from './FlightEnvironment'
+import { FlightLandscape } from './FlightLandscape'
 import { HabitRingCourse } from './HabitRingCourse'
 import { ProjectedCourse } from './ProjectedCourse'
 import { CAMERA_RIGS, ENVIRONMENT } from '@/lib/flight/sceneConfig'
@@ -67,6 +68,7 @@ export default function FlightSceneCanvas() {
         showCloudDeck={quality.showCloudDeck}
         ambientMotion={ambientMotion}
       />
+      <FlightLandscape />
 
       {gameRunning ? (
         <HabitRingCourse />

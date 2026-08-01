@@ -5,12 +5,12 @@ import { isHabitDue, localDateKey } from '@/lib/journey/date'
 import type { DailyFlightRecord, Habit, HabitStatus } from '@/lib/journey/types'
 import { useJourneyStore } from '@/store/journeyStore'
 
-const STATUS_OPTIONS: Array<{ status: HabitStatus; label: string; symbol: string }> = [
+const STATUS_OPTIONS: Array<{ status: HabitStatus; label: string; symbol: string }> = ([
   { status: 'completed', label: 'Erledigt', symbol: '✓' },
   { status: 'partial', label: 'Teilweise', symbol: '½' },
   { status: 'missed', label: 'Nicht erledigt', symbol: '×' },
   { status: 'not_relevant', label: 'Heute nicht relevant', symbol: '–' },
-]
+] as Array<{ status: HabitStatus; label: string; symbol: string }>).filter((option) => option.status !== 'not_relevant')
 
 const DAY_LABELS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
 

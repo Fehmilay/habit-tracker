@@ -59,6 +59,13 @@ export interface AircraftDefinition {
 
 export type GameMode = 'idle' | 'countdown' | 'playing' | 'summary'
 
+export interface HabitGameProgress {
+  coins: number
+  experience: number
+  level: number
+  bestCombo: number
+}
+
 export type FocusFlightStatus = 'flying' | 'landed' | 'crashed'
 
 export interface FocusFlight {

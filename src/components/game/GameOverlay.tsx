@@ -10,6 +10,10 @@ export function GameOverlay() {
   const ringIds = useJourneyStore((state) => state.gameRingIds)
   const score = useJourneyStore((state) => state.gameScore)
   const hits = useJourneyStore((state) => state.gameHits)
+  const coins = useJourneyStore((state) => state.gameCoins)
+  const combo = useJourneyStore((state) => state.gameCombo)
+  const bestCombo = useJourneyStore((state) => state.gameBestCombo)
+  const progress = useJourneyStore((state) => state.progress)
   const beginGame = useJourneyStore((state) => state.beginGame)
   const startGame = useJourneyStore((state) => state.startGame)
   const exitGame = useJourneyStore((state) => state.exitGame)
@@ -32,11 +36,13 @@ export function GameOverlay() {
   if (gameMode === 'idle') return null
 
   if (gameMode === 'summary') {
+    const earnedXp = hits * 100 + coins * 25
     return (
       <div className="game-summary" data-testid="game-summary">
-        <p className="label-caps">Habit Flight abgeschlossen</p>
-        <strong className="numeric">{hits}/{ringIds.length}</strong>
-        <span>Ringe verinnerlicht · {score} Punkte</span>
+        <p className="label-caps">Habit Flight abgeschlossen · Level {progress.level}</p>
+        <strong className="numeric">{score}</strong>
+        <span>{hits}/{ringIds.length} Habits getroffen · {coins} Münzen gesammelt</span>
+        <div className="game-reward-grid"><span>⚡ +{earnedXp} XP</span><span>🔥 {bestCombo}er Combo</span><span>🪙 {progress.coins} Gesamt</span></div>
         <div><button className="primary-button" type="button" onClick={() => startGame(ringIds)}>Nochmal fliegen</button><button className="text-button" type="button" onClick={exitGame}>Zurück zum Kurs</button></div>
       </div>
     )
@@ -46,18 +52,16 @@ export function GameOverlay() {
     <div className="game-layer" data-testid="game-layer" onPointerDown={(event) => event.stopPropagation()}>
       <div className="game-topline">
         <button type="button" onClick={exitGame}>×</button>
-        <div><p className="label-caps-micro">Habit Flight</p><strong className="numeric">{Math.min(ringIndex + 1, ringIds.length)}/{ringIds.length}</strong></div>
-        <span className="numeric">{score}</span>
+        <div><p className="label-caps-micro">Habit Flight · Level {progress.level}</p><strong className="numeric">{Math.min(ringIndex + 1, ringIds.length)}/{ringIds.length}</strong></div>
+        <span className="game-live-score"><b>🪙 {coins}</b><strong className="numeric">{score}</strong>{combo > 1 ? <em>×{combo}</em> : null}</span>
       </div>
       {gameMode === 'countdown' ? (
-        <div className="game-countdown"><span className="numeric">{countdown}</span><p>Daumen bewegen · Ringe treffen</p></div>
+        <div className="game-countdown"><span className="numeric">{countdown}</span><p>Habits treffen · Münzen sammeln</p></div>
       ) : null}
       <div
         className="thumb-zone"
         data-testid="thumb-zone"
-        onPointerDown={(event) => {
-          event.currentTarget.setPointerCapture(event.pointerId)
-        }}
+        onPointerDown={(event) => event.currentTarget.setPointerCapture(event.pointerId)}
         onPointerMove={(event) => {
           if (!event.currentTarget.hasPointerCapture(event.pointerId)) return
           const box = event.currentTarget.getBoundingClientRect()
@@ -69,10 +73,7 @@ export function GameOverlay() {
           gameRuntime.inputX = 0
           gameRuntime.inputY = 0
         }}
-        onPointerCancel={() => {
-          gameRuntime.inputX = 0
-          gameRuntime.inputY = 0
-        }}
+        onPointerCancel={() => { gameRuntime.inputX = 0; gameRuntime.inputY = 0 }}
       >
         <span>STEER</span>
       </div>

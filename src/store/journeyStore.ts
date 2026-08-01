@@ -11,6 +11,7 @@ import type {
   DailyFlightRecord,
   FocusFlight,
   GameMode,
+  HabitGameProgress,
   Habit,
   HabitStatus,
   JourneyGoal,
@@ -32,6 +33,10 @@ interface JourneyStoreState {
   gameRingIndex: number
   gameScore: number
   gameHits: number
+  gameCoins: number
+  gameCombo: number
+  gameBestCombo: number
+  progress: HabitGameProgress
 
   focusFlight: FocusFlight | null
 
@@ -49,12 +54,14 @@ interface JourneyStoreState {
   startGame: (ringIds: string[]) => void
   beginGame: () => void
   registerGameRing: (hit: boolean) => void
+  collectGameCoin: () => void
   finishGame: () => void
   exitGame: () => void
   startFocusFlight: (habit: Habit) => void
   setFocusHiddenAt: (hiddenAt: number | null) => void
   landFocusFlight: () => void
   crashFocusFlight: () => void
+  exitFocusFlight: () => void
   clearFocusFlight: () => void
   selectAircraft: (id: AircraftId) => void
 }
@@ -84,6 +91,10 @@ export const useJourneyStore = create<JourneyStoreState>()(
       gameRingIndex: 0,
       gameScore: 0,
       gameHits: 0,
+      gameCoins: 0,
+      gameCombo: 0,
+      gameBestCombo: 0,
+      progress: { coins: 0, experience: 0, level: 1, bestCombo: 0 },
 
       focusFlight: null,
 
@@ -213,19 +224,42 @@ export const useJourneyStore = create<JourneyStoreState>()(
           gameRingIndex: 0,
           gameScore: 0,
           gameHits: 0,
+          gameCoins: 0,
+          gameCombo: 0,
+          gameBestCombo: 0,
         }),
       beginGame: () => set({ gameMode: 'playing' }),
       registerGameRing: (hit) =>
+        set((state) => {
+          const gameCombo = hit ? state.gameCombo + 1 : 0
+          return {
+            gameRingIndex: state.gameRingIndex + 1,
+            gameScore: state.gameScore + (hit ? 100 * Math.min(5, gameCombo) : 0),
+            gameHits: state.gameHits + (hit ? 1 : 0),
+            gameCombo,
+            gameBestCombo: Math.max(state.gameBestCombo, gameCombo),
+          }
+        }),
+      collectGameCoin: () =>
         set((state) => ({
-          gameRingIndex: state.gameRingIndex + 1,
-          gameScore: state.gameScore + (hit ? 100 : 0),
-          gameHits: state.gameHits + (hit ? 1 : 0),
+          gameCoins: state.gameCoins + 1,
+          gameScore: state.gameScore + 25,
         })),
       finishGame: () =>
-        set((state) => ({
-          gameMode: 'summary',
-          flightMinutes: state.flightMinutes + state.gameHits * 2,
-        })),
+        set((state) => {
+          const earnedExperience = state.gameHits * 100 + state.gameCoins * 25
+          const experience = state.progress.experience + earnedExperience
+          return {
+            gameMode: 'summary',
+            flightMinutes: state.flightMinutes + state.gameHits * 2,
+            progress: {
+              coins: state.progress.coins + state.gameCoins,
+              experience,
+              level: Math.floor(experience / 500) + 1,
+              bestCombo: Math.max(state.progress.bestCombo, state.gameBestCombo),
+            },
+          }
+        }),
       exitGame: () =>
         set({
           gameMode: 'idle',
@@ -233,6 +267,9 @@ export const useJourneyStore = create<JourneyStoreState>()(
           gameRingIndex: 0,
           gameScore: 0,
           gameHits: 0,
+          gameCoins: 0,
+          gameCombo: 0,
+          gameBestCombo: 0,
         }),
       startFocusFlight: (habit) => {
         const startedAt = Date.now()
@@ -256,16 +293,25 @@ export const useJourneyStore = create<JourneyStoreState>()(
       landFocusFlight: () =>
         set((state) => {
           if (!state.focusFlight || state.focusFlight.status !== 'flying') return state
+          const earnedExperience = state.focusFlight.durationMinutes * 10
+          const experience = state.progress.experience + earnedExperience
           return {
             focusFlight: { ...state.focusFlight, hiddenAt: null, status: 'landed' },
             drafts: { ...state.drafts, [state.focusFlight.habitId]: 'completed' },
             flightMinutes: state.flightMinutes + state.focusFlight.durationMinutes,
+            progress: {
+              ...state.progress,
+              coins: state.progress.coins + Math.max(1, Math.floor(state.focusFlight.durationMinutes / 5)),
+              experience,
+              level: Math.floor(experience / 500) + 1,
+            },
           }
         }),
       crashFocusFlight: () =>
         set((state) => state.focusFlight?.status === 'flying'
           ? { focusFlight: { ...state.focusFlight, status: 'crashed' } }
           : state),
+      exitFocusFlight: () => set({ focusFlight: null }),
       clearFocusFlight: () => set({ focusFlight: null }),
       selectAircraft: (id) => {
         const weeks = activeWeekCount(get().records.map((record) => record.date))
@@ -284,6 +330,9 @@ export const useJourneyStore = create<JourneyStoreState>()(
         gameRingIndex: 0,
         gameScore: 0,
         gameHits: 0,
+        gameCoins: 0,
+        gameCombo: 0,
+        gameBestCombo: 0,
       }),
       onRehydrateStorage: () => (state) => state?.setHydrated(true),
     },

@@ -323,6 +323,8 @@ button:active:not(:disabled) { transform: scale(.97); }
 }
 
 .journey-goal strong { color: var(--color-projection-soft); }
+.journey-level { min-width: 84px; }
+.journey-level strong { color: var(--color-correction-soft); font-size: .68rem; }
 
 .flight-actions {
   display: grid;
@@ -480,21 +482,24 @@ button:active:not(:disabled) { transform: scale(.97); }
 .habit-copy strong { overflow: hidden; font-size: .84rem; text-overflow: ellipsis; white-space: nowrap; }
 .habit-copy small { overflow: hidden; color: var(--color-ink-muted); font-size: .62rem; text-overflow: ellipsis; white-space: nowrap; }
 
-.habit-controls { display: flex; align-items: center; gap: 8px; }
+.habit-controls { display: grid; grid-template-columns: minmax(108px, 1fr) auto; align-items: center; gap: 8px; }
 .habit-focus-button {
-  display: grid;
-  width: 38px;
+  display: flex;
+  width: 100%;
   height: 38px;
-  place-items: center;
-  padding: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 11px;
   border: 1px solid rgba(124,201,255,.3);
   border-radius: 13px;
   background: linear-gradient(180deg, rgba(124,201,255,.2), rgba(47,109,153,.14));
   color: var(--color-course-bright);
   box-shadow: inset 0 1px rgba(255,255,255,.1);
 }
-.habit-focus-button i { margin-left: 1px; font-size: .54rem; font-style: normal; }
-.habit-focus-button span { margin-top: -4px; font-size: .48rem; font-weight: 800; line-height: 1; }
+.habit-focus-button::before { content: 'FOKUSFLUG'; color: rgba(196,232,255,.72); font-size: .53rem; font-weight: 800; letter-spacing: .11em; }
+.habit-focus-button i { order: 3; margin-left: 1px; font-size: .54rem; font-style: normal; }
+.habit-focus-button span { font-family: var(--font-numeric); font-size: .58rem; font-weight: 800; line-height: 1; }
 .habit-focus-button:disabled { opacity: .35; cursor: default; }
 .habit-statuses { display: flex; gap: 5px; }
 .habit-statuses button {
@@ -651,6 +656,14 @@ button:active:not(:disabled) { transform: scale(.97); }
 .aircraft-glyph { color: var(--aircraft-accent); font-size: 2rem; transform: rotate(-12deg); }
 .aircraft-card strong { margin-top: 8px; font-size: .72rem; }
 .aircraft-card small { margin-top: 4px; color: var(--color-ink-muted); font-size: .55rem; text-align: center; }
+.pilot-progress-card { padding: 17px; border: 1px solid rgba(47,224,176,.16); border-radius: 19px; background: linear-gradient(135deg, rgba(47,224,176,.1), rgba(124,201,255,.045)); }
+.pilot-progress-card > div:first-child { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.pilot-progress-card span { color: var(--color-projection-soft); font-size: .68rem; font-weight: 750; }
+.pilot-progress-card strong { font-size: 1.1rem; }
+.pilot-progress-card small { color: var(--color-ink-muted); font-size: .6rem; }
+.pilot-xp-track { height: 6px; margin-top: 12px; overflow: hidden; border-radius: 99px; background: rgba(255,255,255,.09); }
+.pilot-xp-track i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--color-correction), var(--color-course-bright)); box-shadow: 0 0 12px rgba(47,224,176,.5); }
+.pilot-progress-card p { margin: 12px 0 0; color: var(--color-ink-secondary); font-size: .65rem; line-height: 1.45; }
 
 /* Sequence --------------------------------------------------------------- */
 .sequence-layer {
@@ -686,6 +699,10 @@ button:active:not(:disabled) { transform: scale(.97); }
 .game-topline > div { display: grid; justify-items: center; gap: 3px; }
 .game-topline > div p { margin: 0; }
 .game-topline > span { justify-self: end; color: var(--color-course-bright); }
+.game-live-score { display: grid; justify-items: end; gap: 2px; }
+.game-live-score b { color: var(--color-projection-soft); font-size: .64rem; font-weight: 750; }
+.game-live-score strong { color: var(--color-course-bright); font-size: .86rem; }
+.game-live-score em { color: var(--color-correction-soft); font-size: .62rem; font-style: normal; font-weight: 800; }
 .game-countdown { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; pointer-events: none; }
 .game-countdown span { font-size: 5rem; line-height: 1; }
 .game-countdown p { margin-top: 14px; color: var(--color-ink-secondary); font-size: .68rem; letter-spacing: .16em; text-transform: uppercase; }
@@ -697,6 +714,8 @@ button:active:not(:disabled) { transform: scale(.97); }
 .game-summary > span { color: var(--color-ink-secondary); font-size: .72rem; }
 .game-summary > div { display: grid; width: min(100%, 320px); margin-top: 30px; gap: 8px; }
 .game-summary .text-button { justify-self: center; }
+.game-reward-grid { display: grid !important; grid-template-columns: repeat(3, 1fr); width: min(100%, 360px) !important; margin-top: 22px !important; gap: 7px !important; }
+.game-reward-grid span { min-height: 56px; display: grid; place-items: center; padding: 7px; border: 1px solid rgba(255,255,255,.1); border-radius: 14px; background: rgba(255,255,255,.045); color: var(--color-ink-secondary); font-size: .6rem; line-height: 1.3; }
 
 /* Legal pages ----------------------------------------------------------- */
 .legal-page {
@@ -758,6 +777,7 @@ button:active:not(:disabled) { transform: scale(.97); }
   letter-spacing: .15em;
 }
 .focus-flight-topline strong { margin-left: 7px; color: var(--color-ink); font-size: 1.2rem; letter-spacing: -.04em; }
+.focus-exit-button { display: grid; width: 30px; height: 30px; place-items: center; margin-right: 5px; padding: 0; border: 1px solid rgba(255,255,255,.18); border-radius: 50%; background: rgba(4,10,18,.46); color: var(--color-ink-secondary); font-size: 1.15rem; line-height: 1; }
 .focus-live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--color-correction); box-shadow: 0 0 14px var(--color-correction); animation: focus-pulse 1.5s ease-in-out infinite; }
 .focus-task-chip { display: inline-flex; align-items: center; gap: 8px; padding: 9px 13px; border: 1px solid rgba(255,255,255,.13); border-radius: 999px; background: rgba(7,17,31,.6); box-shadow: var(--shadow-lift), inset 0 1px rgba(255,255,255,.08); backdrop-filter: blur(20px) saturate(140%); font-size: .73rem; font-weight: 700; }
 .focus-task-chip span { font-size: 1rem; }
@@ -800,7 +820,8 @@ button:active:not(:disabled) { transform: scale(.97); }
   .habit-row { min-height: 66px; padding: 9px; }
   .habit-icon { width: 32px; height: 32px; }
   .habit-statuses button { width: 28px; height: 28px; }
-  .habit-focus-button { width: 32px; height: 32px; border-radius: 11px; }
+  .habit-focus-button { width: 100%; min-width: 100px; height: 32px; padding: 0 7px; border-radius: 11px; }
+  .habit-focus-button::before { font-size: .46rem; }
   .habit-controls { gap: 5px; }
   .habit-footer { margin-top: 14px; }
   .flight-hud { padding-left: calc(var(--safe-left) + 14px); padding-right: calc(var(--safe-right) + 14px); }

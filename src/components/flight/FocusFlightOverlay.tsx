@@ -28,6 +28,7 @@ export function FocusFlightOverlay() {
   const landFocusFlight = useJourneyStore((state) => state.landFocusFlight)
   const crashFocusFlight = useJourneyStore((state) => state.crashFocusFlight)
   const clearFocusFlight = useJourneyStore((state) => state.clearFocusFlight)
+  const exitFocusFlight = useJourneyStore((state) => state.exitFocusFlight)
   const startFocusFlight = useJourneyStore((state) => state.startFocusFlight)
   const [now, setNow] = useState(() => Date.now())
   const warnedForStart = useRef<number | null>(null)
@@ -155,6 +156,7 @@ export function FocusFlightOverlay() {
           {focusFlight.status === 'flying' ? (
             <motion.div className="focus-flight-hud" initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
               <div className="focus-flight-topline">
+                <button className="focus-exit-button" type="button" onClick={exitFocusFlight} aria-label="Fokusflug ohne Abschluss beenden">×</button>
                 <span className="focus-live-dot" aria-hidden="true" />
                 <span>FOKUSFLUG</span>
                 <strong className="numeric">{formatRemaining(remaining)}</strong>
