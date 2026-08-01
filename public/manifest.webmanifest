@@ -1,0 +1,25 @@
+{
+  "name": "Flight Habit",
+  "short_name": "Flight Habit",
+  "description": "Habits, Ziele und ihre langfristige Wirkung als persönlicher Flug.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#050a16",
+  "theme_color": "#050a16",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

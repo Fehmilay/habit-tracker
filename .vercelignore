@@ -1,0 +1,11 @@
+node_modules/
+.next/
+archive/
+playwright-report/
+test-results/
+blob-report/
+.playwright/
+docs/
+e2e/
+scripts/
+*.log
