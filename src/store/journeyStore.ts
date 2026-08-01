@@ -33,7 +33,6 @@ interface JourneyStoreState {
   gameRingIndex: number
   gameScore: number
   gameHits: number
-  gameCoins: number
   gameCombo: number
   gameBestCombo: number
   progress: HabitGameProgress
@@ -54,7 +53,6 @@ interface JourneyStoreState {
   startGame: (ringIds: string[]) => void
   beginGame: () => void
   registerGameRing: (hit: boolean) => void
-  collectGameCoin: () => void
   finishGame: () => void
   exitGame: () => void
   startFocusFlight: (habit: Habit) => void
@@ -91,10 +89,9 @@ export const useJourneyStore = create<JourneyStoreState>()(
       gameRingIndex: 0,
       gameScore: 0,
       gameHits: 0,
-      gameCoins: 0,
       gameCombo: 0,
       gameBestCombo: 0,
-      progress: { coins: 0, experience: 0, level: 1, bestCombo: 0 },
+      progress: { experience: 0, level: 1, bestCombo: 0 },
 
       focusFlight: null,
 
@@ -143,7 +140,12 @@ export const useJourneyStore = create<JourneyStoreState>()(
         })),
 
       setDraftStatus: (habitId, status) =>
-        set((state) => ({ drafts: { ...state.drafts, [habitId]: status } })),
+        set((state) => {
+          if (state.drafts[habitId] !== status) return { drafts: { ...state.drafts, [habitId]: status } }
+          const drafts = { ...state.drafts }
+          delete drafts[habitId]
+          return { drafts }
+        }),
       clearDrafts: () => set({ drafts: {} }),
 
       completeToday: (dateKey = localDateKey()) => {
@@ -224,7 +226,6 @@ export const useJourneyStore = create<JourneyStoreState>()(
           gameRingIndex: 0,
           gameScore: 0,
           gameHits: 0,
-          gameCoins: 0,
           gameCombo: 0,
           gameBestCombo: 0,
         }),
@@ -240,20 +241,14 @@ export const useJourneyStore = create<JourneyStoreState>()(
             gameBestCombo: Math.max(state.gameBestCombo, gameCombo),
           }
         }),
-      collectGameCoin: () =>
-        set((state) => ({
-          gameCoins: state.gameCoins + 1,
-          gameScore: state.gameScore + 25,
-        })),
       finishGame: () =>
         set((state) => {
-          const earnedExperience = state.gameHits * 100 + state.gameCoins * 25
+          const earnedExperience = state.gameHits * 100
           const experience = state.progress.experience + earnedExperience
           return {
             gameMode: 'summary',
             flightMinutes: state.flightMinutes + state.gameHits * 2,
             progress: {
-              coins: state.progress.coins + state.gameCoins,
               experience,
               level: Math.floor(experience / 500) + 1,
               bestCombo: Math.max(state.progress.bestCombo, state.gameBestCombo),
@@ -267,7 +262,6 @@ export const useJourneyStore = create<JourneyStoreState>()(
           gameRingIndex: 0,
           gameScore: 0,
           gameHits: 0,
-          gameCoins: 0,
           gameCombo: 0,
           gameBestCombo: 0,
         }),
@@ -301,7 +295,6 @@ export const useJourneyStore = create<JourneyStoreState>()(
             flightMinutes: state.flightMinutes + state.focusFlight.durationMinutes,
             progress: {
               ...state.progress,
-              coins: state.progress.coins + Math.max(1, Math.floor(state.focusFlight.durationMinutes / 5)),
               experience,
               level: Math.floor(experience / 500) + 1,
             },
@@ -330,7 +323,6 @@ export const useJourneyStore = create<JourneyStoreState>()(
         gameRingIndex: 0,
         gameScore: 0,
         gameHits: 0,
-        gameCoins: 0,
         gameCombo: 0,
         gameBestCombo: 0,
       }),

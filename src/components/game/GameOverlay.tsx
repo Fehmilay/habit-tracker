@@ -10,7 +10,6 @@ export function GameOverlay() {
   const ringIds = useJourneyStore((state) => state.gameRingIds)
   const score = useJourneyStore((state) => state.gameScore)
   const hits = useJourneyStore((state) => state.gameHits)
-  const coins = useJourneyStore((state) => state.gameCoins)
   const combo = useJourneyStore((state) => state.gameCombo)
   const bestCombo = useJourneyStore((state) => state.gameBestCombo)
   const progress = useJourneyStore((state) => state.progress)
@@ -21,28 +20,24 @@ export function GameOverlay() {
 
   useEffect(() => {
     if (gameMode !== 'countdown') return
-    const reset = window.setTimeout(() => setCountdown(3), 0)
-    const first = window.setTimeout(() => setCountdown(2), 700)
-    const second = window.setTimeout(() => setCountdown(1), 1400)
-    const start = window.setTimeout(beginGame, 2100)
-    return () => {
-      window.clearTimeout(first)
-      window.clearTimeout(second)
-      window.clearTimeout(start)
-      window.clearTimeout(reset)
-    }
+    const timers = [
+      window.setTimeout(() => setCountdown(3), 0),
+      window.setTimeout(() => setCountdown(2), 700),
+      window.setTimeout(() => setCountdown(1), 1400),
+      window.setTimeout(beginGame, 2100),
+    ]
+    return () => timers.forEach(window.clearTimeout)
   }, [beginGame, gameMode])
 
   if (gameMode === 'idle') return null
 
   if (gameMode === 'summary') {
-    const earnedXp = hits * 100 + coins * 25
     return (
       <div className="game-summary" data-testid="game-summary">
-        <p className="label-caps">Habit Flight abgeschlossen · Level {progress.level}</p>
+        <p className="label-caps">Habit Flight · Level {progress.level}</p>
         <strong className="numeric">{score}</strong>
-        <span>{hits}/{ringIds.length} Habits getroffen · {coins} Münzen gesammelt</span>
-        <div className="game-reward-grid"><span>⚡ +{earnedXp} XP</span><span>🔥 {bestCombo}er Combo</span><span>🪙 {progress.coins} Gesamt</span></div>
+        <span>{hits}/{ringIds.length} Habits getroffen · +{hits * 100} XP</span>
+        <div className="game-reward-grid"><span>⚡ Fokus +{hits * 100}</span><span>🔥 Beste Combo {bestCombo}</span><span>✈ Level {progress.level}</span></div>
         <div><button className="primary-button" type="button" onClick={() => startGame(ringIds)}>Nochmal fliegen</button><button className="text-button" type="button" onClick={exitGame}>Zurück zum Kurs</button></div>
       </div>
     )
@@ -53,11 +48,9 @@ export function GameOverlay() {
       <div className="game-topline">
         <button type="button" onClick={exitGame}>×</button>
         <div><p className="label-caps-micro">Habit Flight · Level {progress.level}</p><strong className="numeric">{Math.min(ringIndex + 1, ringIds.length)}/{ringIds.length}</strong></div>
-        <span className="game-live-score"><b>🪙 {coins}</b><strong className="numeric">{score}</strong>{combo > 1 ? <em>×{combo}</em> : null}</span>
+        <span className="game-live-score"><strong className="numeric">{score}</strong>{combo > 1 ? <em>×{combo}</em> : null}</span>
       </div>
-      {gameMode === 'countdown' ? (
-        <div className="game-countdown"><span className="numeric">{countdown}</span><p>Habits treffen · Münzen sammeln</p></div>
-      ) : null}
+      {gameMode === 'countdown' ? <div className="game-countdown"><span className="numeric">{countdown}</span><p>Deine Habits treffen</p></div> : null}
       <div
         className="thumb-zone"
         data-testid="thumb-zone"
@@ -74,9 +67,7 @@ export function GameOverlay() {
           gameRuntime.inputY = 0
         }}
         onPointerCancel={() => { gameRuntime.inputX = 0; gameRuntime.inputY = 0 }}
-      >
-        <span>STEER</span>
-      </div>
+      ><span>STEER</span></div>
     </div>
   )
 }

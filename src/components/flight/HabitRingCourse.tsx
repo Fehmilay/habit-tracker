@@ -27,11 +27,8 @@ export function HabitRingCourse() {
   const habits = useJourneyStore((state) => state.habits)
   const registerRing = useJourneyStore((state) => state.registerGameRing)
   const finishGame = useJourneyStore((state) => state.finishGame)
-  const collectGameCoin = useJourneyStore((state) => state.collectGameCoin)
   const groups = useRef<Array<Group | null>>([])
-  const coinGroups = useRef<Array<Group | null>>([])
   const handledIndex = useRef(-1)
-  const handledCoins = useRef(new Set<number>())
 
   const rings = ringIds
     .map((id) => habits.find((habit) => habit.id === id))
@@ -41,7 +38,6 @@ export function HabitRingCourse() {
     if (gameMode === 'countdown') {
       resetGameRuntime()
       handledIndex.current = -1
-      handledCoins.current.clear()
     }
     if (gameMode === 'idle') resetGameRuntime()
   }, [gameMode])
@@ -52,23 +48,7 @@ export function HabitRingCourse() {
     gameRuntime.travel += GAME_SPEED * dt
 
     groups.current.forEach((group, index) => {
-      if (!group) return
-      group.position.z = FIRST_RING_Z - index * RING_SPACING + gameRuntime.travel
-    })
-
-    coinGroups.current.forEach((group, coinIndex) => {
-      if (!group) return
-      const ring = Math.floor(coinIndex / 3)
-      const offset = coinIndex % 3
-      group.position.z = FIRST_RING_Z - ring * RING_SPACING - 12 - offset * 4 + gameRuntime.travel
-      group.rotation.y += dt * 4.8
-      if (handledCoins.current.has(coinIndex) || group.position.z < -1 || group.position.z > 2) return
-      handledCoins.current.add(coinIndex)
-      const pattern = PATTERN[ring % PATTERN.length]
-      const xOffset = offset === 0 ? 0 : offset === 1 ? 1.5 : -1.5
-      const dx = gameRuntime.planeX - (pattern.x + xOffset)
-      const dy = gameRuntime.planeY - pattern.y
-      if (dx * dx + dy * dy <= 3.25) collectGameCoin()
+      if (group) group.position.z = FIRST_RING_Z - index * RING_SPACING + gameRuntime.travel
     })
 
     const active = groups.current[ringIndex]
@@ -80,9 +60,7 @@ export function HabitRingCourse() {
     const dy = gameRuntime.planeY - pattern.y
     const hit = dx * dx + dy * dy <= 12.25
     registerRing(hit)
-    if (hit && typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-      navigator.vibrate(22)
-    }
+    if (hit && typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate(22)
     if (ringIndex >= rings.length - 1) finishGame()
   })
 
@@ -93,65 +71,18 @@ export function HabitRingCourse() {
       {rings.map((habit, index) => {
         const pattern = PATTERN[index % PATTERN.length]
         return (
-          <group
-            key={`${habit.id}-${index}`}
-            ref={(group) => {
-              groups.current[index] = group
-            }}
-            position={[pattern.x, pattern.y, FIRST_RING_Z - index * RING_SPACING]}
-          >
+          <group key={`${habit.id}-${index}`} ref={(group) => { groups.current[index] = group }} position={[pattern.x, pattern.y, FIRST_RING_Z - index * RING_SPACING]}>
             <mesh>
               <torusGeometry args={[3.5, 0.18, 12, 64]} />
-              <meshBasicMaterial
-                color={index === ringIndex ? '#c4e8ff' : '#2f6d99'}
-                transparent
-                opacity={index < ringIndex ? 0.15 : 0.9}
-                blending={AdditiveBlending}
-                depthWrite={false}
-                toneMapped={false}
-              />
+              <meshBasicMaterial color={index === ringIndex ? '#c4e8ff' : '#2f6d99'} transparent opacity={index < ringIndex ? 0.15 : 0.9} blending={AdditiveBlending} depthWrite={false} toneMapped={false} />
             </mesh>
             <mesh>
               <torusGeometry args={[3.75, 0.055, 8, 64]} />
-              <meshBasicMaterial
-                color="#7cc9ff"
-                transparent
-                opacity={0.48}
-                blending={AdditiveBlending}
-                depthWrite={false}
-                toneMapped={false}
-              />
+              <meshBasicMaterial color="#7cc9ff" transparent opacity={0.48} blending={AdditiveBlending} depthWrite={false} toneMapped={false} />
             </mesh>
-            <SceneLabelSprite
-              text={`${habit.icon} ${habit.name}`}
-              subtext={habit.cue}
-              position={[0, 5.5, 0]}
-              scale={[15, 3.75, 1]}
-            />
+            <SceneLabelSprite text={`${habit.icon} ${habit.name}`} subtext={habit.cue} position={[0, 5.5, 0]} scale={[15, 3.75, 1]} />
           </group>
         )
-      })}
-      {rings.flatMap((habit, ringIndex) => {
-        const pattern = PATTERN[ringIndex % PATTERN.length]
-        return [0, 1, 2].map((coinOffset) => {
-          const xOffset = coinOffset === 0 ? 0 : coinOffset === 1 ? 1.5 : -1.5
-          const coinIndex = ringIndex * 3 + coinOffset
-          return (
-            <group
-              key={`${habit.id}-coin-${coinOffset}`}
-              ref={(group) => {
-                coinGroups.current[coinIndex] = group
-              }}
-              position={[pattern.x + xOffset, pattern.y, FIRST_RING_Z - ringIndex * RING_SPACING - 12 - coinOffset * 4]}
-            >
-              <mesh rotation={[Math.PI / 2, 0, 0]}>
-                <cylinderGeometry args={[0.42, 0.42, 0.12, 16]} />
-                <meshStandardMaterial color="#ffd489" emissive="#c87e1c" emissiveIntensity={1.6} metalness={0.75} roughness={0.22} />
-              </mesh>
-              <pointLight color="#ffd489" intensity={0.45} distance={8} />
-            </group>
-          )
-        })
       })}
     </group>
   )

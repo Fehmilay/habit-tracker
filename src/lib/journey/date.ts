@@ -20,6 +20,10 @@ export function weekdayIndex(dateKey: string): number {
 
 export function isHabitDue(habit: Habit, dateKey: string): boolean {
   if (habit.archived) return false
+  if (habit.challengeDays) {
+    const firstDay = habit.createdAt.slice(0, 10)
+    if (dateKey < firstDay || daysBetween(firstDay, dateKey) >= habit.challengeDays) return false
+  }
   return habit.days.length === 0 || habit.days.includes(weekdayIndex(dateKey))
 }
 
@@ -37,4 +41,3 @@ export function activeWeekCount(dates: string[]): number {
   }
   return [...weeks.values()].filter((days) => days.size >= 4).length
 }
-

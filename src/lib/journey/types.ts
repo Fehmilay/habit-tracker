@@ -7,6 +7,8 @@ export interface Habit {
   cue: string
   /** Focus-flight duration. Older saved habits fall back to 25 minutes. */
   durationMinutes?: number
+  /** Number of calendar days this habit belongs to the active flight. */
+  challengeDays?: number
   days: number[]
   impact: number
   archived: boolean
@@ -60,7 +62,6 @@ export interface AircraftDefinition {
 export type GameMode = 'idle' | 'countdown' | 'playing' | 'summary'
 
 export interface HabitGameProgress {
-  coins: number
   experience: number
   level: number
   bestCombo: number

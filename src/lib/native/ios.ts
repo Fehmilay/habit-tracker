@@ -26,3 +26,8 @@ export function focusHaptic(kind: 'start' | 'success' | 'failure'): void {
   }
   void Haptics.impact({ style: ImpactStyle.Medium })
 }
+
+export function selectionHaptic(): void {
+  if (!Capacitor.isNativePlatform()) return
+  void Haptics.selectionStart().then(() => Haptics.selectionChanged()).then(() => Haptics.selectionEnd())
+}

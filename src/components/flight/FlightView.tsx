@@ -1,6 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
+import dynamic from 'next/dynamic'
 import { useEffect, useRef, useState } from 'react'
 import { FlightHud } from './FlightHud'
 import { FlightScene } from './FlightScene'
@@ -18,8 +19,11 @@ import { configureNativeChrome, focusHaptic } from '@/lib/native/ios'
 
 type PageIndex = 0 | 1 | 2
 
+const WorldRouteMap = dynamic(() => import('@/components/map/WorldRouteMap'), { ssr: false })
+
 export function FlightView() {
   const [page, setPage] = useState<PageIndex>(1)
+  const [mapOpen, setMapOpen] = useState(false)
   const pointerStart = useRef<{ x: number; y: number } | null>(null)
   const sceneInitialised = useRef(false)
   const hydrated = useJourneyStore((state) => state.hydrated)
@@ -50,7 +54,7 @@ export function FlightView() {
     start(record)
   }
 
-  const swipeEnabled = gameMode === 'idle' && !sequenceRunning && !focusFlight
+  const swipeEnabled = gameMode === 'idle' && !sequenceRunning && !focusFlight && !mapOpen
 
   return (
     <main
@@ -70,7 +74,7 @@ export function FlightView() {
       }}
     >
       <motion.div className="scene-stage" animate={{ opacity: page === 1 ? 1 : 0.22, scale: page === 1 ? 1 : 0.96 }} transition={{ duration: 0.45 }}>
-        <FlightScene />
+        {!mapOpen ? <FlightScene /> : null}
       </motion.div>
       <motion.div className="app-track" animate={{ x: `${page * -100}vw` }} transition={{ type: 'spring', stiffness: 280, damping: 34, mass: 0.85 }}>
         <HabitsPanel
@@ -83,10 +87,10 @@ export function FlightView() {
             void prepareFocusNotifications()
           }}
         />
-        <section className="flight-page" aria-label="Flug"><FlightHud onOpenHabits={() => setPage(0)} onOpenStats={() => setPage(2)} /></section>
+        <section className="flight-page" aria-label="Flug"><FlightHud onOpenHabits={() => setPage(0)} onOpenStats={() => setPage(2)} onOpenMap={() => setMapOpen(true)} /></section>
         <StatsPanel onBackToFlight={() => setPage(1)} />
       </motion.div>
-      {gameMode === 'idle' && !sequenceRunning && !focusFlight ? (
+      {gameMode === 'idle' && !sequenceRunning && !focusFlight && !mapOpen ? (
         <nav className="page-dots" aria-label="Bereiche">
           {['Habits', 'Flug', 'Stats'].map((label, index) => <button key={label} type="button" className={page === index ? 'active' : ''} onClick={() => setPage(index as PageIndex)} aria-label={label} />)}
         </nav>
@@ -94,6 +98,7 @@ export function FlightView() {
       <GameOverlay />
       <FocusFlightOverlay />
       <FlightSequenceOverlay onSkip={skip} />
+      {mapOpen ? <WorldRouteMap onClose={() => setMapOpen(false)} /> : null}
     </main>
   )
 }

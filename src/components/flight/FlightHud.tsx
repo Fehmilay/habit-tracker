@@ -12,8 +12,10 @@ import { useJourneyStore } from '@/store/journeyStore'
 interface FlightHudProps {
   onOpenHabits: () => void
   onOpenStats: () => void
+  onOpenMap: () => void
 }
-export function FlightHud({ onOpenHabits, onOpenStats }: FlightHudProps) {
+
+export function FlightHud({ onOpenHabits, onOpenStats, onOpenMap }: FlightHudProps) {
   const sequenceRunning = useFlightStore((state) => state.sequenceRunning)
   const animationPhase = useFlightStore((state) => state.animationPhase)
   const journey = useJourneyStore((state) => state.journey)
@@ -43,9 +45,9 @@ export function FlightHud({ onOpenHabits, onOpenStats }: FlightHudProps) {
   return (
     <div className="flight-hud" data-testid="flight-hud">
       <motion.header animate={{ opacity: dimmed ? 0.1 : 1 }} transition={{ duration: 0.4, ease: motionEase.standard }}>
-        <button type="button" className="destination-button" onClick={onOpenStats}>
+        <button type="button" className="destination-button" onClick={onOpenMap}>
           <strong className="numeric">{journey.destinationIata}</strong>
-          <span>{journey.destinationCity}</span>
+          <span>{journey.destinationCity} · Weltkarte</span>
           <small className="numeric">{formatKilometres(remainingDistance)} KM VERBLEIBEND</small>
         </button>
         <button type="button" className="stats-shortcut" onClick={onOpenStats} aria-label="Insights öffnen">↗</button>
@@ -58,7 +60,7 @@ export function FlightHud({ onOpenHabits, onOpenStats }: FlightHudProps) {
       <motion.footer animate={{ opacity: dimmed ? 0.1 : 1 }} transition={{ duration: 0.4, ease: motionEase.standard }}>
         <div className="journey-strip">
           <span><small>REISETAG</small><strong className="numeric">{dayIndex}/{journey.totalDays}</strong></span>
-          <span className="journey-level"><small>PILOT LEVEL</small><strong className="numeric">LVL {progress.level} · 🪙 {progress.coins}</strong></span>
+          <span className="journey-level"><small>PILOT</small><strong className="numeric">LVL {progress.level}</strong></span>
           <span className="journey-goal"><small>{journey.title}</small><strong className="numeric">{projection}%</strong></span>
         </div>
         <div className="flight-actions">
