@@ -5,6 +5,8 @@ export interface Habit {
   name: string
   icon: string
   cue: string
+  /** Focus-flight duration. Older saved habits fall back to 25 minutes. */
+  durationMinutes?: number
   days: number[]
   impact: number
   archived: boolean
@@ -57,3 +59,14 @@ export interface AircraftDefinition {
 
 export type GameMode = 'idle' | 'countdown' | 'playing' | 'summary'
 
+export type FocusFlightStatus = 'flying' | 'landed' | 'crashed'
+
+export interface FocusFlight {
+  habitId: string
+  habitName: string
+  durationMinutes: number
+  startedAt: number
+  endsAt: number
+  hiddenAt: number | null
+  status: FocusFlightStatus
+}

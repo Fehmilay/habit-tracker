@@ -129,7 +129,10 @@ button {
   font: inherit;
   color: inherit;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
+
+button:active:not(:disabled) { transform: scale(.97); }
 
 :focus-visible {
   outline: 2px solid var(--color-course);
@@ -456,9 +459,10 @@ button {
   gap: 10px;
   min-height: 76px;
   padding: 12px 12px 12px 15px;
-  border: 1px solid rgba(255,255,255,.07);
-  border-radius: 18px;
-  background: rgba(255,255,255,.035);
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 20px;
+  background: linear-gradient(145deg, rgba(255,255,255,.075), rgba(255,255,255,.028));
+  box-shadow: 0 10px 30px -26px rgba(0,0,0,.9), inset 0 1px rgba(255,255,255,.04);
 }
 
 .habit-copy {
@@ -476,6 +480,22 @@ button {
 .habit-copy strong { overflow: hidden; font-size: .84rem; text-overflow: ellipsis; white-space: nowrap; }
 .habit-copy small { overflow: hidden; color: var(--color-ink-muted); font-size: .62rem; text-overflow: ellipsis; white-space: nowrap; }
 
+.habit-controls { display: flex; align-items: center; gap: 8px; }
+.habit-focus-button {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(124,201,255,.3);
+  border-radius: 13px;
+  background: linear-gradient(180deg, rgba(124,201,255,.2), rgba(47,109,153,.14));
+  color: var(--color-course-bright);
+  box-shadow: inset 0 1px rgba(255,255,255,.1);
+}
+.habit-focus-button i { margin-left: 1px; font-size: .54rem; font-style: normal; }
+.habit-focus-button span { margin-top: -4px; font-size: .48rem; font-weight: 800; line-height: 1; }
+.habit-focus-button:disabled { opacity: .35; cursor: default; }
 .habit-statuses { display: flex; gap: 5px; }
 .habit-statuses button {
   width: 31px;
@@ -678,6 +698,101 @@ button {
 .game-summary > div { display: grid; width: min(100%, 320px); margin-top: 30px; gap: 8px; }
 .game-summary .text-button { justify-self: center; }
 
+/* Legal pages ----------------------------------------------------------- */
+.legal-page {
+  width: min(100% - 40px, 680px);
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: calc(var(--safe-top) + 40px) 0 calc(var(--safe-bottom) + 48px);
+  color: var(--color-ink-secondary);
+  font-size: .96rem;
+  line-height: 1.7;
+}
+.legal-page h1 { max-width: 600px; margin: 16px 0 22px; color: var(--color-ink); font-size: clamp(2rem, 8vw, 3.2rem); line-height: 1.03; letter-spacing: -.065em; }
+.legal-page h2 { margin: 28px 0 5px; color: var(--color-ink); font-size: 1.05rem; letter-spacing: -.03em; }
+.legal-page p { max-width: 620px; margin: 0; }
+.legal-page section { padding-top: 1px; border-top: 1px solid rgba(255,255,255,.09); }
+.legal-back { display: inline-block; margin-bottom: 38px; color: var(--color-course); font-size: .72rem; font-weight: 750; letter-spacing: .08em; text-decoration: none; text-transform: uppercase; }
+.legal-updated { margin-top: 34px !important; color: var(--color-ink-muted); font-size: .72rem; }
+
+/* Focus flight ---------------------------------------------------------- */
+.focus-flight-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 44;
+  display: grid;
+  place-items: center;
+  padding: calc(var(--safe-top) + 20px) 20px calc(var(--safe-bottom) + 20px);
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(3,9,19,.54), rgba(3,9,19,.12) 42%, rgba(3,9,19,.7));
+  backdrop-filter: blur(1.5px);
+}
+.focus-flight-layer::before {
+  position: absolute;
+  inset: 0;
+  content: '';
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 60%, rgba(124,201,255,.12), transparent 35%);
+}
+.focus-flight-hud {
+  position: absolute;
+  top: calc(var(--safe-top) + 20px);
+  left: 20px;
+  right: 20px;
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  max-width: 440px;
+  margin: 0 auto;
+  color: var(--color-ink);
+  text-align: center;
+}
+.focus-flight-topline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: rgba(242,246,251,.72);
+  font-size: .62rem;
+  font-weight: 800;
+  letter-spacing: .15em;
+}
+.focus-flight-topline strong { margin-left: 7px; color: var(--color-ink); font-size: 1.2rem; letter-spacing: -.04em; }
+.focus-live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--color-correction); box-shadow: 0 0 14px var(--color-correction); animation: focus-pulse 1.5s ease-in-out infinite; }
+.focus-task-chip { display: inline-flex; align-items: center; gap: 8px; padding: 9px 13px; border: 1px solid rgba(255,255,255,.13); border-radius: 999px; background: rgba(7,17,31,.6); box-shadow: var(--shadow-lift), inset 0 1px rgba(255,255,255,.08); backdrop-filter: blur(20px) saturate(140%); font-size: .73rem; font-weight: 700; }
+.focus-task-chip span { font-size: 1rem; }
+.focus-progress { width: min(100%, 240px); height: 4px; overflow: hidden; border-radius: 99px; background: rgba(255,255,255,.15); }
+.focus-progress i { display: block; width: 100%; height: 100%; transform-origin: left; border-radius: inherit; background: linear-gradient(90deg, var(--color-correction), var(--color-course-bright)); box-shadow: 0 0 12px var(--color-course); transition: transform .2s linear; }
+.focus-flight-hud > p { max-width: 290px; margin: 0; color: rgba(220,232,246,.68); font-size: .62rem; line-height: 1.5; }
+.focus-result {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: min(100%, 370px);
+  justify-items: center;
+  padding: 28px 24px 24px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 28px;
+  background: linear-gradient(155deg, rgba(22,45,66,.9), rgba(7,15,28,.88));
+  box-shadow: 0 28px 70px -36px #000, inset 0 1px rgba(255,255,255,.12);
+  text-align: center;
+  backdrop-filter: blur(24px) saturate(150%);
+}
+.focus-result p { margin: 18px 0 0; }
+.focus-result h2 { max-width: 300px; margin: 9px 0 0; font-size: clamp(1.55rem, 7vw, 2rem); letter-spacing: -.055em; line-height: 1.06; }
+.focus-result > span { margin: 10px 0 22px; color: var(--color-ink-secondary); font-size: .72rem; line-height: 1.45; }
+.focus-result .primary-button { min-height: 50px; }
+.focus-result .text-button { justify-self: center; margin-top: 6px; }
+.landing-plane { position: relative; z-index: 2; color: var(--color-course-bright); font-size: 3.2rem; line-height: 1; filter: drop-shadow(0 8px 10px rgba(0,0,0,.55)); }
+.runway { display: flex; align-items: center; justify-content: center; width: 170px; height: 56px; margin-top: -7px; border-top: 2px solid rgba(196,232,255,.55); transform: perspective(120px) rotateX(52deg); }
+.runway i { width: 17px; height: 3px; margin: 0 7px; background: var(--color-course-bright); box-shadow: 0 0 8px var(--color-course); }
+.focus-landed-card::after { position: absolute; inset: auto -25% -38% auto; width: 230px; height: 230px; border-radius: 50%; content: ''; background: rgba(47,224,176,.13); filter: blur(18px); }
+.crash-mark { display: grid; width: 72px; height: 72px; place-items: center; border: 1px solid rgba(226,85,95,.32); border-radius: 50%; background: rgba(226,85,95,.12); color: #ffa8ad; font-size: 3rem; line-height: 1; transform: rotate(24deg); }
+.focus-crashed-card { background: linear-gradient(155deg, rgba(62,28,38,.92), rgba(17,10,19,.9)); }
+.focus-crashed-card .primary-button { border-color: rgba(255,175,181,.3); background: linear-gradient(180deg, rgba(226,85,95,.22), rgba(109,35,44,.22)); color: #ffd6d9; }
+@keyframes focus-pulse { 50% { opacity: .35; transform: scale(.78); } }
+
 @media (max-width: 390px), (max-height: 720px) {
   .side-page { padding-left: 14px; padding-right: 14px; }
   .side-header { margin-bottom: 16px; }
@@ -685,6 +800,8 @@ button {
   .habit-row { min-height: 66px; padding: 9px; }
   .habit-icon { width: 32px; height: 32px; }
   .habit-statuses button { width: 28px; height: 28px; }
+  .habit-focus-button { width: 32px; height: 32px; border-radius: 11px; }
+  .habit-controls { gap: 5px; }
   .habit-footer { margin-top: 14px; }
   .flight-hud { padding-left: calc(var(--safe-left) + 14px); padding-right: calc(var(--safe-right) + 14px); }
   .journey-strip { margin-bottom: 8px; }

@@ -17,9 +17,10 @@ const DAY_LABELS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
 interface HabitsPanelProps {
   onBackToFlight: () => void
   onComplete: (record: DailyFlightRecord) => void
+  onStartTask: (habit: Habit) => void
 }
 
-export function HabitsPanel({ onBackToFlight, onComplete }: HabitsPanelProps) {
+export function HabitsPanel({ onBackToFlight, onComplete, onStartTask }: HabitsPanelProps) {
   const habits = useJourneyStore((state) => state.habits)
   const drafts = useJourneyStore((state) => state.drafts)
   const records = useJourneyStore((state) => state.records)
@@ -85,21 +86,26 @@ export function HabitsPanel({ onBackToFlight, onComplete }: HabitsPanelProps) {
                   <small>{habit.cue}</small>
                 </span>
               </button>
-              <div className="habit-statuses" role="group" aria-label={`${habit.name} bewerten`}>
-                {STATUS_OPTIONS.map((option) => (
-                  <button
-                    key={option.status}
-                    type="button"
-                    className={selected === option.status ? `status-${option.status} active` : ''}
-                    aria-label={option.label}
-                    title={option.label}
-                    disabled={Boolean(completedRecord)}
-                    onClick={() => setDraftStatus(habit.id, option.status)}
-                    data-testid={`habit-${habit.id}-${option.status}`}
-                  >
-                    {option.symbol}
-                  </button>
-                ))}
+              <div className="habit-controls">
+                <button className="habit-focus-button" type="button" onClick={() => onStartTask(habit)} disabled={Boolean(completedRecord)} aria-label={`${habit.name}: Fokusflug für ${habit.durationMinutes ?? 25} Minuten starten`} title={`${habit.durationMinutes ?? 25} Min. Fokusflug`}>
+                  <i>▶</i><span>{habit.durationMinutes ?? 25}</span>
+                </button>
+                <div className="habit-statuses" role="group" aria-label={`${habit.name} bewerten`}>
+                  {STATUS_OPTIONS.map((option) => (
+                    <button
+                      key={option.status}
+                      type="button"
+                      className={selected === option.status ? `status-${option.status} active` : ''}
+                      aria-label={option.label}
+                      title={option.label}
+                      disabled={Boolean(completedRecord)}
+                      onClick={() => setDraftStatus(habit.id, option.status)}
+                      data-testid={`habit-${habit.id}-${option.status}`}
+                    >
+                      {option.symbol}
+                    </button>
+                  ))}
+                </div>
               </div>
             </article>
           )
@@ -150,13 +156,14 @@ function HabitEditor({ habit, onClose }: { habit?: Habit; onClose: () => void })
   const [name, setName] = useState(habit?.name ?? '')
   const [icon, setIcon] = useState(habit?.icon ?? '⭐')
   const [cue, setCue] = useState(habit?.cue ?? '')
+  const [durationMinutes, setDurationMinutes] = useState(habit?.durationMinutes ?? 25)
   const [impact, setImpact] = useState(habit?.impact ?? 1)
   const [days, setDays] = useState<number[]>(habit?.days ?? [0, 1, 2, 3, 4, 5, 6])
 
   const save = (event: React.FormEvent) => {
     event.preventDefault()
     if (!name.trim() || days.length === 0) return
-    const value = { name: name.trim(), icon: icon.trim() || '⭐', cue: cue.trim() || 'Heute bewusst erledigen', impact, days }
+    const value = { name: name.trim(), icon: icon.trim() || '⭐', cue: cue.trim() || 'Heute bewusst erledigen', durationMinutes: Math.max(1, Math.min(240, Number(durationMinutes) || 25)), impact, days }
     if (habit) updateHabit(habit.id, value)
     else addHabit(value)
     onClose()
@@ -178,6 +185,7 @@ function HabitEditor({ habit, onClose }: { habit?: Habit; onClose: () => void })
           <label><span>Name</span><input value={name} onChange={(event) => setName(event.target.value)} placeholder="Gym" autoFocus /></label>
         </div>
         <label className="field"><span>Konkreter Cue</span><input value={cue} onChange={(event) => setCue(event.target.value)} placeholder="45 Minuten Training" /></label>
+        <label className="field"><span>Fokusflug · Minuten</span><input type="number" min="1" max="240" value={durationMinutes} onChange={(event) => setDurationMinutes(Number(event.target.value))} /></label>
         <fieldset className="day-picker">
           <legend>Fällige Tage</legend>
           {DAY_LABELS.map((label, index) => (

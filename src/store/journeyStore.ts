@@ -9,6 +9,7 @@ import { crossTrackDistanceKm } from '@/lib/journey/projection'
 import type {
   AircraftId,
   DailyFlightRecord,
+  FocusFlight,
   GameMode,
   Habit,
   HabitStatus,
@@ -32,6 +33,8 @@ interface JourneyStoreState {
   gameScore: number
   gameHits: number
 
+  focusFlight: FocusFlight | null
+
   setHydrated: (hydrated: boolean) => void
   initializeJourney: () => void
   updateJourney: (updates: Partial<JourneyGoal>) => void
@@ -48,6 +51,11 @@ interface JourneyStoreState {
   registerGameRing: (hit: boolean) => void
   finishGame: () => void
   exitGame: () => void
+  startFocusFlight: (habit: Habit) => void
+  setFocusHiddenAt: (hiddenAt: number | null) => void
+  landFocusFlight: () => void
+  crashFocusFlight: () => void
+  clearFocusFlight: () => void
   selectAircraft: (id: AircraftId) => void
 }
 
@@ -76,6 +84,8 @@ export const useJourneyStore = create<JourneyStoreState>()(
       gameRingIndex: 0,
       gameScore: 0,
       gameHits: 0,
+
+      focusFlight: null,
 
       setHydrated: (hydrated) => set({ hydrated }),
       initializeJourney: () => {
@@ -224,6 +234,39 @@ export const useJourneyStore = create<JourneyStoreState>()(
           gameScore: 0,
           gameHits: 0,
         }),
+      startFocusFlight: (habit) => {
+        const startedAt = Date.now()
+        const durationMinutes = Math.max(1, Math.min(240, habit.durationMinutes ?? 25))
+        set({
+          focusFlight: {
+            habitId: habit.id,
+            habitName: habit.name,
+            durationMinutes,
+            startedAt,
+            endsAt: startedAt + durationMinutes * 60_000,
+            hiddenAt: null,
+            status: 'flying',
+          },
+        })
+      },
+      setFocusHiddenAt: (hiddenAt) =>
+        set((state) => state.focusFlight?.status === 'flying'
+          ? { focusFlight: { ...state.focusFlight, hiddenAt } }
+          : state),
+      landFocusFlight: () =>
+        set((state) => {
+          if (!state.focusFlight || state.focusFlight.status !== 'flying') return state
+          return {
+            focusFlight: { ...state.focusFlight, hiddenAt: null, status: 'landed' },
+            drafts: { ...state.drafts, [state.focusFlight.habitId]: 'completed' },
+            flightMinutes: state.flightMinutes + state.focusFlight.durationMinutes,
+          }
+        }),
+      crashFocusFlight: () =>
+        set((state) => state.focusFlight?.status === 'flying'
+          ? { focusFlight: { ...state.focusFlight, status: 'crashed' } }
+          : state),
+      clearFocusFlight: () => set({ focusFlight: null }),
       selectAircraft: (id) => {
         const weeks = activeWeekCount(get().records.map((record) => record.date))
         const aircraft = AIRCRAFT.find((item) => item.id === id)

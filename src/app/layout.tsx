@@ -12,6 +12,14 @@ export const metadata: Metadata = {
     title: 'Flight Habit',
     statusBarStyle: 'black-translucent',
   },
+  icons: {
+    icon: [{ url: '/icons/icon-512.png', type: 'image/png', sizes: '512x512' }],
+    apple: [{ url: '/icons/apple-touch-icon.png', type: 'image/png', sizes: '180x180' }],
+  },
+  category: 'health-fitness',
+  formatDetection: {
+    telephone: false,
+  },
 }
 
 export const viewport: Viewport = {

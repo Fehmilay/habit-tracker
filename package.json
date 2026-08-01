@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "next dev -p 3100",
     "build": "next build",
+    "build:ios": "npm run build && npx cap sync ios",
+    "sync:ios": "npx cap sync ios",
+    "open:ios": "npx cap open ios",
     "start": "next start -p 3100",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
@@ -14,6 +17,11 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/local-notifications": "^8.2.1",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.3",
     "@react-three/drei": "10.7.7",
     "@react-three/fiber": "9.7.0",
     "framer-motion": "12.43.0",
@@ -24,6 +32,8 @@
     "zustand": "5.0.14"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/ios": "^8.5.0",
     "@playwright/test": "1.62.1",
     "@tailwindcss/postcss": "4.3.3",
     "@types/node": "24.13.3",

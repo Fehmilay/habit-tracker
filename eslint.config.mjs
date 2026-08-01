@@ -10,6 +10,7 @@ const config = [
       '.vercel/**',
       'archive/**',
       'course-flight-app/**',
+      'ios/App/App/public/**',
       'node_modules/**',
       'out/**',
       'playwright-report/**',

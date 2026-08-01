@@ -8,6 +8,7 @@ export const DEFAULT_HABITS: Habit[] = [
     name: 'Gym',
     icon: '🏋️',
     cue: '45 Minuten Training',
+    durationMinutes: 45,
     days: [0, 2, 4],
     impact: 1,
     archived: false,
@@ -18,6 +19,7 @@ export const DEFAULT_HABITS: Habit[] = [
     name: 'Kalorienziel',
     icon: '🥗',
     cue: 'Im geplanten Rahmen bleiben',
+    durationMinutes: 25,
     days: everyDay,
     impact: 1,
     archived: false,
@@ -28,6 +30,7 @@ export const DEFAULT_HABITS: Habit[] = [
     name: '10k Schritte',
     icon: '🚶',
     cue: '10.000 Schritte sammeln',
+    durationMinutes: 30,
     days: everyDay,
     impact: 0.5,
     archived: false,
@@ -38,6 +41,7 @@ export const DEFAULT_HABITS: Habit[] = [
     name: 'Wasser',
     icon: '💧',
     cue: '2,5 Liter trinken',
+    durationMinutes: 10,
     days: everyDay,
     impact: 0.5,
     archived: false,
@@ -65,4 +69,3 @@ export const AIRCRAFT: AircraftDefinition[] = [
   { id: 'longhaul', name: 'Long Range', caption: 'Vier aktive Wochen', requiredWeeks: 4, accent: '#ffd489' },
   { id: 'velocity', name: 'Velocity X', caption: 'Acht aktive Wochen', requiredWeeks: 8, accent: '#d1a8ff' },
 ]
-
