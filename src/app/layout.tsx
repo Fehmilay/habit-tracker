@@ -6,7 +6,6 @@ export const metadata: Metadata = {
   description:
     'Deine Ziele und täglichen Gewohnheiten als Langstreckenflug. Kleine Kursabweichungen, große Wirkung.',
   applicationName: 'Flight Habit',
-  manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
     title: 'Flight Habit',
@@ -35,6 +34,9 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="de">
+      <head>
+        <link rel="manifest" href="/manifest.webmanifest" crossOrigin="use-credentials" />
+      </head>
       <body>{children}</body>
     </html>
   )

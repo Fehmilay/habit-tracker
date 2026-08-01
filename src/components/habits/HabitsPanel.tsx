@@ -30,10 +30,14 @@ export function HabitsPanel({ onBackToFlight, onComplete, onStartTask, onStartRe
   const setDraftStatus = useJourneyStore((state) => state.setDraftStatus)
   const completeToday = useJourneyStore((state) => state.completeToday)
   const importLegacyHabits = useJourneyStore((state) => state.importLegacyHabits)
-  const recoveryMissions = useJourneyStore((state) => state.recoveryMissions.filter((mission) => mission.status === 'available'))
+  const allRecoveryMissions = useJourneyStore((state) => state.recoveryMissions)
   const [editingHabit, setEditingHabit] = useState<Habit | 'new' | null>(null)
   const [editingGoal, setEditingGoal] = useState(false)
   const [legacyAvailable, setLegacyAvailable] = useState(false)
+  const recoveryMissions = useMemo(
+    () => allRecoveryMissions.filter((mission) => mission.status === 'available'),
+    [allRecoveryMissions],
+  )
   const today = localDateKey()
   const dueHabits = useMemo(() => habits.filter((habit) => isHabitDue(habit, today)), [habits, today])
   const completedRecord = records.find((record) => record.date === today)
