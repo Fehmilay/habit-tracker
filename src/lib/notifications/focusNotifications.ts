@@ -6,6 +6,17 @@ import { LocalNotifications } from '@capacitor/local-notifications'
 export const FOCUS_LANDING_NOTIFICATION_ID = 9420
 export const FOCUS_RETURN_NOTIFICATION_ID = 9421
 
+export async function refreshWebServiceWorker(): Promise<ServiceWorkerRegistration | null> {
+  if (typeof window === 'undefined' || Capacitor.isNativePlatform() || !('serviceWorker' in navigator)) return null
+  try {
+    const registration = await navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
+    await registration.update()
+    return registration
+  } catch {
+    return null
+  }
+}
+
 /**
  * Local notifications are deliberately best-effort: iOS only allows them for
  * installed web apps after an explicit user gesture. The focus timer itself
@@ -28,7 +39,7 @@ export async function prepareFocusNotifications(): Promise<boolean> {
 
   if ('serviceWorker' in navigator) {
     try {
-      await navigator.serviceWorker.register('/sw.js')
+      await refreshWebServiceWorker()
       await navigator.serviceWorker.ready
     } catch {
       // The flight still works without a service worker.

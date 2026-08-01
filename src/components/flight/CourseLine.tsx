@@ -56,8 +56,8 @@ export function CourseLine({ gateCount }: CourseLineProps) {
 
   const ribbonUniforms = useMemo(
     () => ({
-      uColor: { value: new Color(color.course) },
-      uCoreColor: { value: new Color(color.courseBright) },
+      uColor: { value: new Color(color.correction) },
+      uCoreColor: { value: new Color(color.projectionSoft) },
       uTime: { value: 0 },
       uDashLength: { value: COURSE_LINE.dashLength },
       uDashGap: { value: COURSE_LINE.dashGap },
@@ -69,7 +69,7 @@ export function CourseLine({ gateCount }: CourseLineProps) {
 
   const corridorUniforms = useMemo(
     () => ({
-      uColor: { value: new Color(color.courseDim) },
+      uColor: { value: new Color('#14725f') },
       // Very low: the corridor is a hint, not a structure. Anything brighter
       // reads as a glowing runway and competes with the course line itself.
       uOpacity: { value: 0.22 },
@@ -79,7 +79,7 @@ export function CourseLine({ gateCount }: CourseLineProps) {
 
   const gateUniforms = useMemo(
     () => ({
-      uColor: { value: new Color(color.course) },
+      uColor: { value: new Color(color.correction) },
       uOpacity: { value: 0.55 },
     }),
     [],

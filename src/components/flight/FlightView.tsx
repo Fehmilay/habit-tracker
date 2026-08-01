@@ -14,7 +14,7 @@ import { StatsPanel } from '@/components/stats/StatsPanel'
 import type { DailyFlightRecord } from '@/lib/journey/types'
 import { useFlightStore } from '@/store/flightStore'
 import { useJourneyStore } from '@/store/journeyStore'
-import { prepareFocusNotifications } from '@/lib/notifications/focusNotifications'
+import { prepareFocusNotifications, refreshWebServiceWorker } from '@/lib/notifications/focusNotifications'
 import { configureNativeChrome, focusHaptic } from '@/lib/native/ios'
 
 type PageIndex = 0 | 1 | 2
@@ -47,6 +47,7 @@ export function FlightView() {
 
   useEffect(() => {
     void configureNativeChrome()
+    void refreshWebServiceWorker()
   }, [])
 
   const handleComplete = (record: DailyFlightRecord) => {
@@ -74,7 +75,7 @@ export function FlightView() {
       }}
     >
       <motion.div className="scene-stage" animate={{ opacity: page === 1 ? 1 : 0.22, scale: page === 1 ? 1 : 0.96 }} transition={{ duration: 0.45 }}>
-        {!mapOpen ? <FlightScene /> : null}
+        <FlightScene paused={mapOpen} />
       </motion.div>
       <motion.div className="app-track" animate={{ x: `${page * -100}vw` }} transition={{ type: 'spring', stiffness: 280, damping: 34, mass: 0.85 }}>
         <HabitsPanel

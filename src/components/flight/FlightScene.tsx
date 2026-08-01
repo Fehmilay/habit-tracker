@@ -38,7 +38,7 @@ function getServerSupportSnapshot(): boolean {
 
 const noopSubscribe = () => () => {}
 
-export function FlightScene() {
+export function FlightScene({ paused = false }: { paused?: boolean }) {
   const supported = useSyncExternalStore(
     noopSubscribe,
     getSupportSnapshot,
@@ -49,7 +49,7 @@ export function FlightScene() {
 
   return (
     <SceneErrorBoundary fallback={<SceneFallback2D reason="error" />}>
-      <FlightSceneCanvas />
+      <FlightSceneCanvas paused={paused} />
     </SceneErrorBoundary>
   )
 }

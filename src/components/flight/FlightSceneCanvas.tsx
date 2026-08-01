@@ -3,6 +3,7 @@
 import { Canvas } from '@react-three/fiber'
 import { ACESFilmicToneMapping } from 'three'
 import { Aircraft3D } from './Aircraft3D'
+import { AtlasTerrain } from './AtlasTerrain'
 import { ChaseCamera } from './ChaseCamera'
 import { CourseLine } from './CourseLine'
 import { DestinationAirport } from './DestinationAirport'
@@ -22,7 +23,7 @@ import { useJourneyStore } from '@/store/journeyStore'
  * Default-exported and loaded through `next/dynamic` with SSR disabled, so the
  * Three.js bundle is only fetched once we know the device can actually use it.
  */
-export default function FlightSceneCanvas() {
+export default function FlightSceneCanvas({ paused = false }: { paused?: boolean }) {
   const quality = useQualitySettings()
   const prefersReducedMotion = useReducedMotion()
   const documentVisible = useDocumentVisible()
@@ -37,7 +38,7 @@ export default function FlightSceneCanvas() {
     <Canvas
       dpr={quality.dpr}
       // A backgrounded tab renders nothing at all.
-      frameloop={documentVisible ? 'always' : 'never'}
+      frameloop={documentVisible && !paused ? 'always' : 'never'}
       gl={{
         antialias: quality.antialias,
         powerPreference: 'high-performance',
@@ -67,6 +68,7 @@ export default function FlightSceneCanvas() {
         showCloudDeck={quality.showCloudDeck}
         ambientMotion={ambientMotion}
       />
+      <AtlasTerrain reducedDetail={quality.tier === 'low'} />
 
       {gameRunning ? (
         <HabitRingCourse />

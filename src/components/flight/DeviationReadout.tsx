@@ -3,9 +3,9 @@
 import { useEffect, useRef } from 'react'
 import { flightRuntime } from '@/lib/flight/flightRuntime'
 import {
-  deviationColor,
+  deviationSeverity,
   deviationStatusLabel,
-  formatDeviation,
+  formatCourseDeviation,
 } from '@/lib/flight/formatDeviation'
 import { useFlightStore } from '@/store/flightStore'
 
@@ -22,8 +22,12 @@ export function DeviationReadout() {
 
   const valueRef = useRef<HTMLSpanElement>(null)
   const statusRef = useRef<HTMLSpanElement>(null)
+  const readoutRef = useRef<HTMLDivElement>(null)
+  const helperRef = useRef<HTMLSpanElement>(null)
+  const symbolRef = useRef<HTMLSpanElement>(null)
   const lastValue = useRef<string>('')
   const lastStatus = useRef<string>('')
+  const lastState = useRef<string>('')
 
   useEffect(() => {
     let frame = 0
@@ -31,11 +35,18 @@ export function DeviationReadout() {
     const tick = () => {
       const deviation = flightRuntime.currentHeadingDegrees - plannedHeadingDegrees
 
-      const text = formatDeviation(deviation)
+      const text = formatCourseDeviation(deviation)
       if (text !== lastValue.current && valueRef.current) {
         valueRef.current.textContent = text
-        valueRef.current.style.color = deviationColor(deviation)
         lastValue.current = text
+      }
+
+      const state = deviationSeverity(deviation) === 'on-course' ? 'on-course' : 'off-course'
+      if (state !== lastState.current) {
+        if (readoutRef.current) readoutRef.current.dataset.state = state
+        if (symbolRef.current) symbolRef.current.textContent = state === 'on-course' ? '✓' : '×'
+        if (helperRef.current) helperRef.current.textContent = state === 'on-course' ? 'DIESEN KURS HALTEN' : 'JEDER HABIT BRINGT DICH ZURÜCK'
+        lastState.current = state
       }
 
       const status = deviationStatusLabel(deviation)
@@ -52,36 +63,14 @@ export function DeviationReadout() {
   }, [plannedHeadingDegrees])
 
   return (
-    <div style={{ textAlign: 'center' }}>
-      <p className="label-caps" style={{ margin: 0 }}>
-        Kursabweichung
-      </p>
-      <span
-        ref={valueRef}
-        data-testid="deviation-value"
-        className="numeric"
-        style={{
-          display: 'block',
-          marginTop: 4,
-          fontSize: 'clamp(2.25rem, 11vw, 3.25rem)',
-          fontWeight: 600,
-          letterSpacing: '-0.02em',
-          lineHeight: 1,
-          color: 'var(--color-course)',
-          textShadow: '0 0 28px rgba(124, 201, 255, 0.35)',
-          transition: 'color 400ms var(--ease-standard)',
-        }}
-      >
-        0°
-      </span>
-      <span
-        ref={statusRef}
-        data-testid="deviation-status"
-        className="label-caps-micro"
-        style={{ display: 'block', marginTop: 8 }}
-      >
-        Auf Kurs
-      </span>
+    <div ref={readoutRef} className="deviation-readout" data-state="on-course">
+      <p className="label-caps">ZIELKURS</p>
+      <div className="deviation-value-shell">
+        <span ref={symbolRef} className="deviation-state-symbol" aria-hidden="true">✓</span>
+        <span ref={valueRef} data-testid="deviation-value" className="numeric">0°</span>
+      </div>
+      <span ref={statusRef} data-testid="deviation-status" className="deviation-status">Perfekt auf Kurs</span>
+      <span ref={helperRef} className="deviation-helper">DIESEN KURS HALTEN</span>
     </div>
   )
 }

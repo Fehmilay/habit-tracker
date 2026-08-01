@@ -23,7 +23,7 @@ export function ProjectedCourse() {
     <group name="projected-course">
       <Line
         points={points}
-        color="#f2b544"
+        color="#e2555f"
         lineWidth={1.25}
         transparent
         opacity={0.72}
@@ -33,9 +33,8 @@ export function ProjectedCourse() {
       />
       <mesh position={points[1]}>
         <sphereGeometry args={[3.2, 12, 12]} />
-        <meshBasicMaterial color="#f2b544" transparent opacity={0.8} toneMapped={false} />
+        <meshBasicMaterial color="#e2555f" transparent opacity={0.82} toneMapped={false} />
       </mesh>
     </group>
   )
 }
-
