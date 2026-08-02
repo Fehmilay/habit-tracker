@@ -2,8 +2,13 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { clampFuel, fuelEarnedForStatuses, GAME_FUEL_COST, RECOVERY_FUEL_REWARD, STARTER_FUEL } from '@/lib/game/economy'
-import { AIRCRAFT, DEFAULT_HABITS, DEFAULT_JOURNEY } from '@/lib/journey/defaults'
+import { clampFuel, fuelEarnedForStatuses, RECOVERY_FUEL_REWARD, STARTER_FUEL } from '@/lib/game/economy'
+import {
+  experienceForRing,
+  levelForExperience,
+  skinById,
+} from '@/lib/game/progression'
+import { DEFAULT_HABITS, DEFAULT_JOURNEY } from '@/lib/journey/defaults'
 import { calculateDailyDeviation } from '@/lib/journey/deviation'
 import { activeWeekCount, isHabitDue, localDateKey } from '@/lib/journey/date'
 import { crossTrackDistanceKm } from '@/lib/journey/projection'
@@ -12,7 +17,6 @@ import type {
   CycleLandingResult,
   DailyFlightRecord,
   FocusFlight,
-  GameMode,
   HabitGameProgress,
   Habit,
   HabitStatus,
@@ -31,15 +35,16 @@ interface JourneyStoreState {
   hydrated: boolean
   hasStarted: boolean
 
-  gameMode: GameMode
-  gameRingIds: string[]
-  gameRingIndex: number
-  gameScore: number
-  gameHits: number
+  /**
+   * Live combo. The habit flight runs continuously now rather than as a round
+   * you start and finish, so this accumulates for the session instead of being
+   * reset by a start/finish pair.
+   */
   gameCombo: number
   gameBestCombo: number
-  gameRingResults: boolean[]
   progress: HabitGameProgress
+  /** Set when a ring pushes the player over a level threshold; UI clears it. */
+  pendingLevelUp: number | null
 
   focusFlight: FocusFlight | null
   recoveryMissions: RecoveryMission[]
@@ -56,11 +61,8 @@ interface JourneyStoreState {
   completeToday: (dateKey?: string) => DailyFlightRecord | null
   importLegacyHabits: () => number
 
-  startGame: (ringIds: string[]) => void
-  beginGame: () => void
   registerGameRing: (hit: boolean) => void
-  finishGame: () => void
-  exitGame: () => void
+  clearLevelUp: () => void
   startFocusFlight: (habit: Habit) => void
   startRecoveryFlight: (missionId: string) => void
   setFocusHiddenAt: (hiddenAt: number | null) => void
@@ -79,6 +81,7 @@ const DEFAULT_PROGRESS: HabitGameProgress = {
   fuel: STARTER_FUEL,
   totalFuelEarned: 0,
   successfulLandings: 0,
+  ringsFlown: 0,
 }
 
 function makeId(prefix: string): string {
@@ -101,15 +104,10 @@ export const useJourneyStore = create<JourneyStoreState>()(
       hydrated: false,
       hasStarted: false,
 
-      gameMode: 'idle',
-      gameRingIds: [],
-      gameRingIndex: 0,
-      gameScore: 0,
-      gameHits: 0,
       gameCombo: 0,
       gameBestCombo: 0,
-      gameRingResults: [],
       progress: DEFAULT_PROGRESS,
+      pendingLevelUp: null,
 
       focusFlight: null,
       recoveryMissions: [],
@@ -242,7 +240,7 @@ export const useJourneyStore = create<JourneyStoreState>()(
             .map<Habit>((item) => ({
               id: makeId('legacy'),
               name: String(item.name),
-              icon: typeof item.icon === 'string' ? item.icon : '⭐',
+              icon: typeof item.icon === 'string' ? item.icon : 'spark',
               cue:
                 typeof item.duration === 'number'
                   ? `${item.duration} Minuten`
@@ -261,60 +259,34 @@ export const useJourneyStore = create<JourneyStoreState>()(
         }
       },
 
-      startGame: (ringIds) =>
-        set((state) => {
-          if (ringIds.length === 0 || state.progress.fuel < GAME_FUEL_COST) return state
-          return {
-            gameMode: 'countdown',
-            gameRingIds: ringIds,
-            gameRingIndex: 0,
-            gameScore: 0,
-            gameHits: 0,
-            gameCombo: 0,
-            gameBestCombo: 0,
-            gameRingResults: [],
-            progress: { ...state.progress, fuel: clampFuel(state.progress.fuel - GAME_FUEL_COST) },
-          }
-        }),
-      beginGame: () => set({ gameMode: 'playing' }),
+      /**
+       * One ring passed the aircraft.
+       *
+       * This is the whole game loop now - there is no round to start or
+       * finish, so experience and levels are settled here, ring by ring.
+       */
       registerGameRing: (hit) =>
         set((state) => {
           const gameCombo = hit ? state.gameCombo + 1 : 0
+          const earned = hit ? experienceForRing(gameCombo) : 0
+          const experience = state.progress.experience + earned
+          const level = levelForExperience(experience)
+          const levelledUp = level > state.progress.level
+
           return {
-            gameRingIndex: state.gameRingIndex + 1,
-            gameScore: state.gameScore + (hit ? 100 * Math.min(5, gameCombo) : 0),
-            gameHits: state.gameHits + (hit ? 1 : 0),
             gameCombo,
             gameBestCombo: Math.max(state.gameBestCombo, gameCombo),
-            gameRingResults: [...state.gameRingResults, hit],
-          }
-        }),
-      finishGame: () =>
-        set((state) => {
-          const earnedExperience = state.gameHits * 100
-          const experience = state.progress.experience + earnedExperience
-          return {
-            gameMode: 'summary',
-            flightMinutes: state.flightMinutes + state.gameHits * 2,
+            pendingLevelUp: levelledUp ? level : state.pendingLevelUp,
             progress: {
               ...state.progress,
               experience,
-              level: Math.floor(experience / 500) + 1,
-              bestCombo: Math.max(state.progress.bestCombo, state.gameBestCombo),
+              level,
+              bestCombo: Math.max(state.progress.bestCombo, gameCombo),
+              ringsFlown: state.progress.ringsFlown + 1,
             },
           }
         }),
-      exitGame: () =>
-        set({
-          gameMode: 'idle',
-          gameRingIds: [],
-          gameRingIndex: 0,
-          gameScore: 0,
-          gameHits: 0,
-          gameCombo: 0,
-          gameBestCombo: 0,
-          gameRingResults: [],
-        }),
+      clearLevelUp: () => set({ pendingLevelUp: null }),
       startFocusFlight: (habit) => {
         const startedAt = Date.now()
         const durationMinutes = Math.max(1, Math.min(240, habit.durationMinutes ?? 25))
@@ -403,9 +375,8 @@ export const useJourneyStore = create<JourneyStoreState>()(
           }
         }),
       selectAircraft: (id) => {
-        const weeks = activeWeekCount(get().records.map((record) => record.date))
-        const aircraft = AIRCRAFT.find((item) => item.id === id)
-        if (aircraft && weeks >= aircraft.requiredWeeks) set({ selectedAircraft: id })
+        const skin = skinById(id)
+        if (get().progress.level >= skin.requiredLevel) set({ selectedAircraft: id })
       },
     }),
     {
@@ -414,31 +385,34 @@ export const useJourneyStore = create<JourneyStoreState>()(
       partialize: (state) => ({
         ...state,
         hydrated: false,
-        gameMode: 'idle' as const,
-        gameRingIds: [],
-        gameRingIndex: 0,
-        gameScore: 0,
-        gameHits: 0,
+        // Per-session: a combo you left running yesterday is not one you are
+        // still flying.
         gameCombo: 0,
         gameBestCombo: 0,
-        gameRingResults: [],
+        pendingLevelUp: null,
       }),
       merge: (persistedState, currentState) => {
         const saved = persistedState as Partial<JourneyStoreState>
         const savedProgress = saved.progress
+        const experience = savedProgress?.experience ?? 0
         return {
           ...currentState,
           ...saved,
-          gameMode: 'idle',
-          gameRingIds: [],
-          gameRingIndex: 0,
-          gameRingResults: [],
+          gameCombo: 0,
+          gameBestCombo: 0,
+          pendingLevelUp: null,
           progress: {
             ...DEFAULT_PROGRESS,
             ...savedProgress,
+            experience,
+            // Recomputed rather than trusted: profiles saved under the old
+            // flat "every 500 XP" curve carry a level that no longer matches
+            // their experience, and skins are gated on it.
+            level: levelForExperience(experience),
             fuel: clampFuel(savedProgress?.fuel ?? STARTER_FUEL),
             totalFuelEarned: savedProgress?.totalFuelEarned ?? 0,
             successfulLandings: savedProgress?.successfulLandings ?? 0,
+            ringsFlown: savedProgress?.ringsFlown ?? 0,
           },
           recoveryMissions: saved.recoveryMissions ?? [],
           lastLanding: saved.lastLanding ?? null,

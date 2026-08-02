@@ -47,7 +47,7 @@ export function RecoveryFocusRing() {
         <meshBasicMaterial color={color} transparent opacity={0.4} blending={AdditiveBlending} depthWrite={false} toneMapped={false} />
       </mesh>
       <SceneLabelSprite
-        text={landed ? `✓ ${recovery.habitName}` : recovery.habitName}
+        text={recovery.habitName}
         subtext={landed ? `ECHTE AKTION · −${recovery.recoveryDegrees ?? 0}° KURSKORREKTUR` : `${recovery.durationMinutes} MIN FOKUS · FEHLSCHLAG BLEIBT BESTEHEN`}
         color={color}
         position={[0, 6.25, 0]}

@@ -2,7 +2,6 @@ import type { HabitStatus } from '@/lib/journey/types'
 
 export const MAX_HABIT_FUEL = 100
 export const STARTER_FUEL = 20
-export const GAME_FUEL_COST = 20
 export const RECOVERY_FUEL_REWARD = 8
 
 export function fuelForHabitStatus(status: HabitStatus): number {

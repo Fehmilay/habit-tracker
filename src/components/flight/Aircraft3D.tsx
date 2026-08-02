@@ -4,10 +4,12 @@ import { useFrame } from '@react-three/fiber'
 import { useLayoutEffect, useMemo, useRef } from 'react'
 import {
   AdditiveBlending,
+  Color,
   DoubleSide,
   type Group,
   type InstancedMesh,
   type Mesh,
+  type MeshStandardMaterial,
   type Sprite,
 } from 'three'
 import { color } from '@/lib/design/tokens'
@@ -29,8 +31,12 @@ import { degToRad } from '@/lib/flight/flightMath'
 import { flightRuntime } from '@/lib/flight/flightRuntime'
 import { gameRuntime } from '@/lib/game/gameRuntime'
 import { createFanTexture, createGlowTexture } from '@/lib/flight/textures'
-import { AIRCRAFT } from '@/lib/journey/defaults'
+import { skinById } from '@/lib/game/progression'
 import { useJourneyStore } from '@/store/journeyStore'
+
+/** Colours the hull is driven toward as damage builds. */
+const CHARRED = new Color('#2a2622')
+const EMBER = new Color('#ff6a2a')
 
 const WING_DIHEDRAL = degToRad(5)
 const STABILISER_DIHEDRAL = degToRad(7)
@@ -54,9 +60,10 @@ interface Aircraft3DProps {
  */
 export function Aircraft3D({ fuselageSegments }: Aircraft3DProps) {
   const selectedAircraft = useJourneyStore((state) => state.selectedAircraft)
-  const gameMode = useJourneyStore((state) => state.gameMode)
-  const aircraftAccent = AIRCRAFT.find((item) => item.id === selectedAircraft)?.accent ?? color.hullLight
+  const skin = skinById(selectedAircraft)
+  const baseHullColor = useMemo(() => new Color(skin.hull), [skin.hull])
   const groupRef = useRef<Group>(null)
+  const hullMaterialRef = useRef<MeshStandardMaterial>(null)
   const cabinWindowsRef = useRef<InstancedMesh>(null)
   const cockpitWindowsRef = useRef<InstancedMesh>(null)
   const beaconRef = useRef<Sprite>(null)
@@ -157,9 +164,24 @@ export function Aircraft3D({ fuselageSegments }: Aircraft3DProps) {
     // right, which is a negative rotation about +Y.
     group.rotation.y = -degToRad(flightRuntime.currentHeadingDegrees)
     group.rotation.x = degToRad(flightRuntime.currentPitchDegrees)
-    group.rotation.z = -degToRad(flightRuntime.currentRollDegrees)
-    group.position.x = gameMode === 'playing' ? gameRuntime.planeX : 0
-    group.position.y = flightRuntime.verticalOffset
+    // Course bank plus the player's steering bank - see FlightDriver for why
+    // these are tracked separately.
+    group.rotation.z = -degToRad(
+      flightRuntime.currentRollDegrees + flightRuntime.steerRollDegrees,
+    )
+    group.position.x = gameRuntime.planeX
+    group.position.y = flightRuntime.verticalOffset + gameRuntime.planeY
+
+    // Scorching: the hull darkens and picks up an ember glow as damage builds,
+    // so the aircraft itself carries the state, not just the effects around it.
+    const hull = hullMaterialRef.current
+    if (hull) {
+      const scorch = Math.min(1, flightRuntime.damageSeverity * 1.15)
+      hull.color.copy(baseHullColor).lerp(CHARRED, scorch * 0.8)
+      hull.emissive.copy(EMBER).multiplyScalar(scorch * 0.28)
+      hull.roughness = 0.34 + scorch * 0.5
+      hull.metalness = 0.62 - scorch * 0.35
+    }
 
     for (const fan of fanRefs.current) {
       if (fan) fan.rotation.z += delta * 7.5
@@ -180,7 +202,8 @@ export function Aircraft3D({ fuselageSegments }: Aircraft3DProps) {
       {/* Fuselage */}
       <mesh geometry={fuselage} frustumCulled={false}>
         <meshStandardMaterial
-          color={color.hullLight}
+          ref={hullMaterialRef}
+          color={skin.hull}
           metalness={0.62}
           roughness={0.34}
           envMapIntensity={0.85}
@@ -198,7 +221,7 @@ export function Aircraft3D({ fuselageSegments }: Aircraft3DProps) {
         />
         <mesh geometry={winglet} position={[4.66, 0, 0]} rotation={[0, 0, 1.31]}>
           <meshStandardMaterial
-            color={aircraftAccent}
+            color={skin.accent}
             metalness={0.5}
             roughness={0.45}
             side={DoubleSide}
@@ -220,7 +243,7 @@ export function Aircraft3D({ fuselageSegments }: Aircraft3DProps) {
         />
         <mesh geometry={wingletPort} position={[-4.66, 0, 0]} rotation={[0, 0, -1.31]}>
           <meshStandardMaterial
-            color={aircraftAccent}
+            color={skin.accent}
             metalness={0.5}
             roughness={0.45}
             side={DoubleSide}
@@ -235,7 +258,7 @@ export function Aircraft3D({ fuselageSegments }: Aircraft3DProps) {
         rotation={[0, 0, STABILISER_DIHEDRAL]}
       >
         <meshStandardMaterial
-          color={aircraftAccent}
+          color={skin.accent}
           metalness={0.55}
           roughness={0.42}
           side={DoubleSide}
@@ -257,7 +280,7 @@ export function Aircraft3D({ fuselageSegments }: Aircraft3DProps) {
       {/* Vertical fin: the same lifting surface stood on its edge */}
       <mesh geometry={fin} position={FIN_ANCHOR} rotation={[0, 0, Math.PI / 2]}>
         <meshStandardMaterial
-          color={color.hullLight}
+          color={skin.accent}
           metalness={0.52}
           roughness={0.42}
           side={DoubleSide}
@@ -274,7 +297,7 @@ export function Aircraft3D({ fuselageSegments }: Aircraft3DProps) {
               args={[NACELLE_RADIUS, NACELLE_RADIUS * 0.93, 1.85, 20, 1, true]}
             />
             <meshStandardMaterial
-              color={color.engineCowl}
+              color={skin.trim}
               metalness={0.72}
               roughness={0.32}
               side={DoubleSide}

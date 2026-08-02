@@ -4,7 +4,9 @@ import { feature } from 'topojson-client'
 import type { Feature, FeatureCollection, Geometry, Position } from 'geojson'
 import type { Topology } from 'topojson-specification'
 import worldTopology from 'world-atlas/land-110m.json'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo } from 'react'
+import { Glyph } from '@/components/icons/Glyph'
+import { daysBetween } from '@/lib/journey/date'
 import { AIRPORTS, airportByIata } from '@/lib/maps/airports'
 import { useJourneyStore } from '@/store/journeyStore'
 
@@ -69,11 +71,21 @@ function pathFromPoints(points: [number, number][]): string {
   }).join(' ')
 }
 
+/**
+ * The route, seen from above.
+ *
+ * The aircraft marker sits at the journey's *real* progress - day count over
+ * total days. It previously had a "start world flight" button that flew a
+ * marker along the route over twelve seconds and then reset: an animation
+ * that showed nothing true and could be replayed forever, so it has been
+ * dropped in favour of the position actually meaning something.
+ */
 export default function WorldRouteMap({ onClose }: { onClose: () => void }) {
-  const frameRef = useRef<number | null>(null)
   const journey = useJourneyStore((state) => state.journey)
-  const [playing, setPlaying] = useState(false)
-  const [progress, setProgress] = useState(0)
+  const progress = Math.max(
+    0,
+    Math.min(1, (daysBetween(journey.startDate) + 1) / Math.max(1, journey.totalDays)),
+  )
 
   const origin = airportByIata(journey.originIata, AIRPORTS[0])
   const destination = airportByIata(journey.destinationIata, AIRPORTS[5])
@@ -88,25 +100,6 @@ export default function WorldRouteMap({ onClose }: { onClose: () => void }) {
   ) * 180 / Math.PI
   const originPoint = project(origin.coordinates)
   const destinationPoint = project(destination.coordinates)
-
-  useEffect(() => () => {
-    if (frameRef.current) window.cancelAnimationFrame(frameRef.current)
-  }, [])
-
-  const startFlight = () => {
-    if (playing) return
-    setPlaying(true)
-    setProgress(0)
-    const startedAt = performance.now()
-    const animate = (time: number) => {
-      const value = Math.min(1, (time - startedAt) / 12_000)
-      const eased = value < 0.5 ? 2 * value * value : 1 - (-2 * value + 2) ** 2 / 2
-      setProgress(eased)
-      if (value < 1) frameRef.current = window.requestAnimationFrame(animate)
-      else setPlaying(false)
-    }
-    frameRef.current = window.requestAnimationFrame(animate)
-  }
 
   return (
     <section className="world-map-layer" aria-label="Offline-Weltflugkarte">
@@ -135,14 +128,16 @@ export default function WorldRouteMap({ onClose }: { onClose: () => void }) {
         </svg>
       </div>
       <header className="world-map-header">
-        <button type="button" onClick={onClose} aria-label="Weltkarte schließen">×</button>
-        <div><span>DEINE OFFLINE-WELTROUTE</span><strong>{origin.iata} → {destination.iata}</strong></div>
-        <span>{Math.round(journey.totalDistanceKm).toLocaleString('de-DE')} km</span>
+        <button type="button" onClick={onClose} aria-label="Weltkarte schließen"><Glyph name="cross" size={16} /></button>
+        <div><strong className="numeric">{origin.iata}<i aria-hidden="true" />{destination.iata}</strong></div>
+        <span className="numeric">{Math.round(journey.totalDistanceKm).toLocaleString('de-DE')} km</span>
       </header>
       <div className="world-map-card">
         <div><span>{origin.city}</span><i /><span>{destination.city}</span></div>
-        <button type="button" className="primary-button" onClick={startFlight} disabled={playing}>{playing ? `${Math.round(progress * 100)}% UNTERWEGS` : progress >= 1 ? '↻ NOCHMAL FLIEGEN' : '▶ WELTFLUG STARTEN'}</button>
-        <small>Offline verfügbar · echte Flughafenkoordinaten · keine externen Kartendienste</small>
+        <div className="world-map-progress" aria-label={`${Math.round(progress * 100)} Prozent der Reise`}>
+          <i><b style={{ width: `${progress * 100}%` }} /></i>
+          <strong className="numeric">{Math.round(progress * 100)}%</strong>
+        </div>
       </div>
     </section>
   )

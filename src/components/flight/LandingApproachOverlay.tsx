@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { AircraftGlyph } from '@/components/icons/AircraftGlyph'
 import { cycleTruthScore, landingGrade, landingOffsetPercent } from '@/lib/game/landing'
 import { flightCycleProgress, localDateKey } from '@/lib/journey/date'
 import type { CycleLandingResult } from '@/lib/journey/types'
@@ -84,7 +85,9 @@ export function LandingApproachOverlay({ onClose }: { onClose: () => void }) {
               animate={{ y: '22vh', x: `calc(-50% + ${offset}vw)`, scale: 1.05, rotate: 0 }}
               transition={{ duration: 5.35, ease: [0.45, 0, 0.2, 1] }}
               aria-hidden="true"
-            >✈</motion.div>
+            >
+              <AircraftGlyph size={30} color="currentColor" rotationDegrees={-35} />
+            </motion.div>
             <motion.div className="landing-telemetry" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <span>FINAL · CYCLE {cycle}</span>
               <strong className="numeric">{completionPercent}% REAL</strong>

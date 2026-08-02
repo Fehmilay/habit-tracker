@@ -4,6 +4,7 @@ import { Canvas } from '@react-three/fiber'
 import { useMemo } from 'react'
 import { ACESFilmicToneMapping } from 'three'
 import { Aircraft3D } from './Aircraft3D'
+import { AircraftDamage } from './AircraftDamage'
 import { AtlasTerrain } from './AtlasTerrain'
 import { ChaseCamera } from './ChaseCamera'
 import { ChaseViewFade } from './ChaseViewFade'
@@ -23,6 +24,14 @@ import { useDocumentVisible } from '@/lib/perf/useDocumentVisible'
 import { useReducedMotion } from '@/lib/perf/useReducedMotion'
 import { useJourneyStore } from '@/store/journeyStore'
 
+interface FlightSceneCanvasProps {
+  paused?: boolean
+  /** Whether the endless ring course runs and steering moves the aircraft. */
+  interactive?: boolean
+  /** 0..1 share of recently rated habits that were missed. */
+  missRate?: number
+}
+
 /**
  * The WebGL scene.
  *
@@ -38,12 +47,14 @@ import { useJourneyStore } from '@/store/journeyStore'
  * `FlightView` instead, on `<main>`, alongside the swipe handling that
  * already lives there for the same structural reason.
  */
-export default function FlightSceneCanvas({ paused = false }: { paused?: boolean }) {
+export default function FlightSceneCanvas({
+  paused = false,
+  interactive = true,
+  missRate = 0,
+}: FlightSceneCanvasProps) {
   const quality = useQualitySettings()
   const prefersReducedMotion = useReducedMotion()
   const documentVisible = useDocumentVisible()
-  const gameMode = useJourneyStore((state) => state.gameMode)
-  const gameRunning = gameMode === 'countdown' || gameMode === 'playing'
   const originIata = useJourneyStore((state) => state.journey.originIata)
   const destinationIata = useJourneyStore((state) => state.journey.destinationIata)
 
@@ -82,7 +93,11 @@ export default function FlightSceneCanvas({ paused = false }: { paused?: boolean
       }}
       style={{ position: 'absolute', inset: 0 }}
     >
-      <FlightDriver ambientMotion={ambientMotion} />
+      <FlightDriver
+        ambientMotion={ambientMotion}
+        steeringActive={interactive}
+        missRate={missRate}
+      />
       <ChaseCamera />
 
       <FlightEnvironment
@@ -95,18 +110,18 @@ export default function FlightSceneCanvas({ paused = false }: { paused?: boolean
       <ChaseViewFade>
         <AtlasTerrain reducedDetail={quality.tier === 'low'} />
 
-        {gameRunning ? (
-          <HabitRingCourse />
-        ) : (
-          <>
-            <CourseLine gateCount={quality.courseGateCount} />
-            <ProjectedCourse />
-            <DestinationAirport />
-          </>
-        )}
+        {/* The course line and the ring course now coexist. The line is the
+            app's meaning - where you should be - and the rings are the game
+            played along it; the old build swapped one out for the other, which
+            meant playing hid the very thing being visualised. */}
+        <CourseLine gateCount={quality.courseGateCount} />
+        <ProjectedCourse />
+        <DestinationAirport />
+        <HabitRingCourse active={interactive && !paused} />
         <DailyConfirmationRing />
         <RecoveryFocusRing />
         <Aircraft3D fuselageSegments={quality.fuselageSegments} />
+        <AircraftDamage />
       </ChaseViewFade>
 
       <GlobeView

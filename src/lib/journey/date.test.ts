@@ -5,7 +5,7 @@ import type { Habit } from './types'
 const habit: Habit = {
   id: 'focus',
   name: 'Focus',
-  icon: '✦',
+  icon: 'spark',
   cue: '25 Minuten',
   days: [0, 1, 2, 3, 4, 5, 6],
   impact: 1,

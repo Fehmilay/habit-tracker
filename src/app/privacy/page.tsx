@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 export default function PrivacyPage() {
   return (
     <main className="legal-page">
-      <Link href="/" className="legal-back">← Flight Habit</Link>
+      <Link href="/" className="legal-back">Zurück</Link>
       <p className="label-caps">Datenschutz</p>
       <h1>Deine Reise bleibt auf deinem Gerät.</h1>
       <p>Flight Habit speichert Ziele, Habits, Check-ins und Fokusflüge lokal im Browser beziehungsweise in der installierten App. Es gibt kein Benutzerkonto.</p>

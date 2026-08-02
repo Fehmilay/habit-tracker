@@ -231,10 +231,15 @@ button:active:not(:disabled) { transform: scale(.97); }
   gap: 10px;
 }
 
-.flight-hud button,
-.flight-hud footer {
+.flight-hud button {
   pointer-events: auto;
 }
+
+/* Deliberately not the footer itself: giving the whole footer pointer-events
+   would hand its full width and height to the HUD and leave the steering
+   surface beneath it unreachable. */
+.flight-hud footer { pointer-events: none; }
+.flight-hud footer .journey-strip { pointer-events: none; }
 
 .destination-button {
   display: grid;
@@ -345,18 +350,43 @@ button:active:not(:disabled) { transform: scale(.97); }
 }
 
 .deviation-state-symbol {
-  display: grid;
+  position: relative;
   width: 37px;
   height: 37px;
-  place-items: center;
   border-radius: 50%;
   background: var(--color-correction);
-  color: #04130f;
-  font-size: 1rem;
-  font-weight: 900;
   box-shadow: 0 0 20px rgba(47,224,176,.35);
   transition: background .35s var(--ease-standard), box-shadow .35s var(--ease-standard);
 }
+
+/* The tick and the cross are drawn from two rotated bars rather than set as a
+   font character, so they match the stroke weight of the SVG icon set. */
+.deviation-state-symbol::before,
+.deviation-state-symbol::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border-radius: 2px;
+  background: #04130f;
+  transition: all .3s var(--ease-standard);
+}
+.deviation-state-symbol[data-state="on-course"]::before {
+  width: 2px; height: 8px;
+  transform: translate(-232%, -18%) rotate(-45deg);
+  transform-origin: 50% 100%;
+}
+.deviation-state-symbol[data-state="on-course"]::after {
+  width: 2px; height: 15px;
+  transform: translate(-50%, -62%) rotate(38deg);
+  transform-origin: 50% 100%;
+}
+.deviation-state-symbol[data-state="off-course"]::before,
+.deviation-state-symbol[data-state="off-course"]::after {
+  width: 2px; height: 16px;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+.deviation-state-symbol[data-state="off-course"]::after { transform: translate(-50%, -50%) rotate(-45deg); }
 
 .deviation-value-shell .numeric {
   color: var(--color-correction-soft);
@@ -377,7 +407,9 @@ button:active:not(:disabled) { transform: scale(.97); }
   box-shadow: 0 0 34px rgba(226,85,95,.18), inset 0 1px rgba(255,255,255,.07);
 }
 
-.deviation-readout[data-state="off-course"] .deviation-state-symbol { background: var(--color-alert); color: #fff; box-shadow: 0 0 20px rgba(226,85,95,.38); }
+.deviation-readout[data-state="off-course"] .deviation-state-symbol { background: var(--color-alert); box-shadow: 0 0 20px rgba(226,85,95,.38); }
+.deviation-readout[data-state="off-course"] .deviation-state-symbol::before,
+.deviation-readout[data-state="off-course"] .deviation-state-symbol::after { background: #fff; }
 .deviation-readout[data-state="off-course"] .deviation-value-shell .numeric,
 .deviation-readout[data-state="off-course"] .deviation-status { color: #ff7a83; text-shadow: 0 0 28px rgba(226,85,95,.3); }
 .deviation-readout[data-state="off-course"] .deviation-helper { color: rgba(255,184,188,.72); }
@@ -417,8 +449,11 @@ button:active:not(:disabled) { transform: scale(.97); }
 }
 
 .journey-goal strong { color: var(--color-projection-soft); }
-.journey-level { min-width: 84px; }
-.journey-level strong { color: var(--color-correction-soft); font-size: .68rem; }
+.journey-level { min-width: 74px; justify-items: center; }
+.journey-level strong { color: var(--color-correction-soft); }
+/* Thin XP track under the level number - progression without a caption. */
+.journey-level > i { display: block; width: 42px; height: 2px; margin-top: 5px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.12); }
+.journey-level > i > b { display: block; height: 100%; border-radius: inherit; background: var(--color-correction); transition: width .5s var(--ease-standard); }
 
 .aircraft-play-button {
   position: absolute;
@@ -481,16 +516,16 @@ button:active:not(:disabled) { transform: scale(.97); }
 }
 
 .checkin-button {
-  display: grid;
-  justify-items: start;
-  align-content: center;
-  gap: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   padding: 10px 18px;
-  text-align: left;
+  color: var(--color-course-bright);
 }
 
-.checkin-button span { color: var(--color-ink-muted); }
-.checkin-button strong { font-size: .8rem; letter-spacing: .12em; }
+.checkin-button strong { font-size: 1.05rem; letter-spacing: .02em; }
+.checkin-button strong b { color: var(--color-ink-muted); font-size: .72rem; font-weight: 600; }
 
 .swipe-edges {
   display: flex;
@@ -499,13 +534,12 @@ button:active:not(:disabled) { transform: scale(.97); }
 }
 
 .swipe-edges button {
-  padding: 2px;
+  display: grid;
+  place-items: center;
+  padding: 4px;
   border: 0;
   background: none;
   color: var(--color-ink-muted);
-  font-size: .56rem;
-  font-weight: 700;
-  letter-spacing: .18em;
 }
 
 .swipe-edges span { color: rgba(255,255,255,.22); }
@@ -594,7 +628,7 @@ button:active:not(:disabled) { transform: scale(.97); }
   text-align: left;
 }
 
-.habit-icon { display: grid; flex: none; width: 38px; height: 38px; place-items: center; border-radius: 12px; background: rgba(124,201,255,.08); font-size: 1.15rem; }
+.habit-icon { display: grid; flex: none; width: 38px; height: 38px; place-items: center; border-radius: 12px; background: rgba(124,201,255,.08); color: var(--color-course); }
 .habit-copy > span:last-child { display: grid; gap: 4px; }
 .habit-copy strong { overflow: hidden; font-size: .84rem; text-overflow: ellipsis; white-space: nowrap; }
 .habit-copy small { overflow: hidden; color: var(--color-ink-muted); font-size: .62rem; text-overflow: ellipsis; white-space: nowrap; }
@@ -615,10 +649,8 @@ button:active:not(:disabled) { transform: scale(.97); }
   box-shadow: inset 0 1px rgba(255,255,255,.1);
 }
 .habit-focus-button::before { content: none; }
-.habit-focus-button i { margin-left: 1px; font-size: .7rem; font-style: normal; }
-.habit-focus-button span { display: grid; justify-items: start; gap: 3px; margin: 0; }
-.habit-focus-button small { color: rgba(196,232,255,.62); font-size: .5rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
-.habit-focus-button strong { font-family: var(--font-numeric); font-size: .64rem; letter-spacing: .05em; }
+.habit-focus-button { display: flex; gap: 5px; align-items: center; justify-content: center; }
+.habit-focus-button strong { font-family: var(--font-numeric); font-size: .7rem; letter-spacing: .02em; }
 .habit-focus-button:disabled { opacity: .35; cursor: default; }
 .habit-statuses { display: flex; gap: 5px; }
 .habit-statuses button {
@@ -748,7 +780,9 @@ button:active:not(:disabled) { transform: scale(.97); }
 .editor-progress i { flex: 1; height: 3px; border-radius: 99px; background: rgba(255,255,255,.08); }
 .editor-progress i.active { background: var(--color-course); box-shadow: 0 0 8px rgba(124,201,255,.38); }
 .editor-step { min-height: 260px; }
-.icon-picker { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; margin-bottom: 16px; }
+.icon-picker { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 16px; }
+.icon-picker button { display: grid; place-items: center; color: var(--color-ink-secondary); }
+.icon-picker button.active { color: var(--color-course-bright); }
 .icon-picker button { min-width: 0; height: 40px; padding: 0; border: 1px solid rgba(255,255,255,.08); border-radius: 11px; background: rgba(255,255,255,.035); }
 .icon-picker button.active { border-color: rgba(124,201,255,.55); background: rgba(124,201,255,.14); }
 .choice-group { display: grid; gap: 10px; margin: 18px 0; }
@@ -1079,3 +1113,202 @@ button:active:not(:disabled) { transform: scale(.97); }
   .journey-strip { width: 430px; margin-left: auto; }
   .swipe-edges { width: 430px; margin-left: auto; }
 }
+
+/* Long-press to edit -------------------------------------------------------
+   The row fills from the left while held, so the gesture confirms itself
+   before it fires rather than firing out of nowhere. */
+.habit-copy {
+  position: relative;
+  overflow: hidden;
+  border-radius: 13px;
+  cursor: pointer;
+  touch-action: pan-y;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.habit-hold-fill {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(124,201,255,.22), rgba(124,201,255,.07));
+  opacity: 0;
+  transform: scaleX(0);
+  transform-origin: left center;
+  pointer-events: none;
+}
+
+.habit-row[data-holding='true'] .habit-hold-fill {
+  opacity: 1;
+  transform: scaleX(1);
+  /* Matches LONG_PRESS_MS in useLongPress.ts. */
+  transition: transform 480ms linear, opacity 120ms ease-out;
+}
+
+/* Steering ---------------------------------------------------------------- */
+/* Sits *below* the HUD layer on purpose. The steering surface covers the
+   lower half of the screen, which is exactly where the HUD's own controls
+   live; above them it swallowed every tap meant for a button. Underneath, the
+   HUD keeps its buttons and the steering picks up everything else, because
+   the flight page is pointer-events: none apart from those controls. */
+.thumb-zone {
+  position: fixed;
+  z-index: 12;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 48dvh;
+  touch-action: none;
+}
+
+.thumb-stick {
+  position: absolute;
+  width: 74px;
+  height: 74px;
+  margin: -37px 0 0 -37px;
+  border: 1px solid rgba(196,232,255,.34);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(124,201,255,.2), rgba(124,201,255,.03) 70%);
+  box-shadow: 0 0 26px rgba(124,201,255,.24);
+  opacity: 0;
+  transform: translate(var(--stick-x, 0px), var(--stick-y, 0px));
+  transition: opacity .18s var(--ease-standard);
+  pointer-events: none;
+}
+
+.thumb-stick[data-active='true'] { opacity: 1; }
+
+.combo-badge {
+  position: fixed;
+  z-index: 27;
+  left: 50%;
+  top: 38dvh;
+  padding: 5px 13px;
+  border: 1px solid rgba(47,224,176,.4);
+  border-radius: 999px;
+  background: rgba(4,19,15,.72);
+  color: var(--color-correction-soft);
+  font-size: .82rem;
+  font-weight: 700;
+  transform: translateX(-50%);
+  backdrop-filter: blur(10px);
+  animation: combo-pop .34s var(--ease-decelerate);
+  pointer-events: none;
+}
+
+@keyframes combo-pop {
+  from { transform: translateX(-50%) scale(.7); opacity: 0; }
+  to { transform: translateX(-50%) scale(1); opacity: 1; }
+}
+
+/* Off-course alarm --------------------------------------------------------
+   A frame-edge bleed rather than a banner: readable at a glance, and it never
+   covers the aircraft or the course line it is warning about. */
+.course-alarm {
+  position: fixed;
+  inset: 0;
+  z-index: 24;
+  pointer-events: none;
+}
+
+.course-alarm::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(120% 78% at 50% 50%, transparent 48%, rgba(226,85,95,.42) 100%);
+  opacity: var(--alarm, 0);
+}
+
+.course-alarm::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 2px solid rgba(226,85,95,.5);
+  opacity: calc(var(--alarm-steady, 0) * .75);
+}
+
+.course-alarm-badge {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--safe-top) + 96px);
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(226,85,95,.9);
+  color: #fff;
+  transform: translateX(-50%);
+  opacity: var(--alarm, 0);
+}
+
+/* Level up ---------------------------------------------------------------- */
+.level-up-card {
+  position: fixed;
+  z-index: 34;
+  left: 50%;
+  top: 22dvh;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  border: 1px solid rgba(255,212,137,.4);
+  border-radius: 999px;
+  background: linear-gradient(140deg, rgba(48,37,14,.9), rgba(8,17,31,.88));
+  box-shadow: 0 18px 46px -24px rgba(0,0,0,.95), 0 0 34px rgba(242,181,68,.2);
+  backdrop-filter: blur(16px);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.level-up-mark { display: grid; place-items: center; color: var(--color-projection); }
+.level-up-card > strong { color: var(--color-projection-soft); font-size: 1.5rem; letter-spacing: .02em; }
+.level-up-skin {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 12px;
+  border-left: 1px solid rgba(255,255,255,.14);
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+/* Hangar and world map tweaks --------------------------------------------- */
+.aircraft-card small:empty { display: none; }
+
+.world-map-header strong i {
+  display: inline-block;
+  width: 22px;
+  height: 1px;
+  margin: 0 8px;
+  vertical-align: middle;
+  background: rgba(196,232,255,.5);
+}
+
+.world-map-progress { display: flex; align-items: center; gap: 10px; }
+.world-map-progress > i {
+  flex: 1;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255,255,255,.1);
+}
+.world-map-progress > i > b {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--color-correction), var(--color-course-bright));
+}
+.world-map-progress > strong { color: var(--color-course-bright); font-size: .78rem; }
+
+.pilot-progress-figures { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.pilot-progress-figures strong b { color: var(--color-ink-muted); font-size: .7rem; font-weight: 600; }
+
+.habit-rate-row span { display: flex; align-items: center; gap: 8px; }
+.habit-rate-row .habit-icon { width: 26px; height: 26px; border-radius: 9px; }
+
+.side-header h1 b { color: var(--color-ink-muted); font-size: .62em; font-weight: 600; }
+.eyebrow-button { display: grid; place-items: center; }

@@ -52,23 +52,19 @@ export interface DailyFlightRecord {
 
 export type AircraftId = 'trainer' | 'turboprop' | 'regional' | 'longhaul' | 'velocity'
 
-export interface AircraftDefinition {
-  id: AircraftId
-  name: string
-  caption: string
-  requiredWeeks: number
-  accent: string
-}
-
-export type GameMode = 'idle' | 'countdown' | 'playing' | 'summary'
-
 export interface HabitGameProgress {
   experience: number
   level: number
   bestCombo: number
+  /**
+   * Retained only so previously saved profiles rehydrate without loss. The
+   * flight no longer costs anything to start - it never stops - so nothing
+   * reads this any more.
+   */
   fuel: number
   totalFuelEarned: number
   successfulLandings: number
+  ringsFlown: number
 }
 
 export type RecoveryMissionStatus = 'available' | 'completed'

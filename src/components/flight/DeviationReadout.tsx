@@ -23,7 +23,6 @@ export function DeviationReadout() {
   const valueRef = useRef<HTMLSpanElement>(null)
   const statusRef = useRef<HTMLSpanElement>(null)
   const readoutRef = useRef<HTMLDivElement>(null)
-  const helperRef = useRef<HTMLSpanElement>(null)
   const symbolRef = useRef<HTMLSpanElement>(null)
   const lastValue = useRef<string>('')
   const lastStatus = useRef<string>('')
@@ -44,8 +43,9 @@ export function DeviationReadout() {
       const state = deviationSeverity(deviation) === 'on-course' ? 'on-course' : 'off-course'
       if (state !== lastState.current) {
         if (readoutRef.current) readoutRef.current.dataset.state = state
-        if (symbolRef.current) symbolRef.current.textContent = state === 'on-course' ? '✓' : '×'
-        if (helperRef.current) helperRef.current.textContent = state === 'on-course' ? 'DIESEN KURS HALTEN' : 'JEDER HABIT BRINGT DICH ZURÜCK'
+        // A data attribute rather than a character: the mark is drawn in CSS
+        // so it matches the stroke weight of the rest of the icon set.
+        if (symbolRef.current) symbolRef.current.dataset.state = state
         lastState.current = state
       }
 
@@ -64,13 +64,11 @@ export function DeviationReadout() {
 
   return (
     <div ref={readoutRef} className="deviation-readout" data-state="on-course">
-      <p className="label-caps">ZIELKURS</p>
       <div className="deviation-value-shell">
-        <span ref={symbolRef} className="deviation-state-symbol" aria-hidden="true">✓</span>
+        <span ref={symbolRef} className="deviation-state-symbol" data-state="on-course" aria-hidden="true" />
         <span ref={valueRef} data-testid="deviation-value" className="numeric">0°</span>
       </div>
-      <span ref={statusRef} data-testid="deviation-status" className="deviation-status">Perfekt auf Kurs</span>
-      <span ref={helperRef} className="deviation-helper">DIESEN KURS HALTEN</span>
+      <span ref={statusRef} data-testid="deviation-status" className="deviation-status">Auf Kurs</span>
     </div>
   )
 }

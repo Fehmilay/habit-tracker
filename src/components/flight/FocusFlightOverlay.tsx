@@ -9,6 +9,8 @@ import {
   scheduleFocusNotification,
   showFocusNotification,
 } from '@/lib/notifications/focusNotifications'
+import { AircraftGlyph } from '@/components/icons/AircraftGlyph'
+import { Glyph, resolveGlyph } from '@/components/icons/Glyph'
 import { useJourneyStore } from '@/store/journeyStore'
 import { focusHaptic } from '@/lib/native/ios'
 
@@ -60,7 +62,7 @@ export function FocusFlightOverlay() {
           void scheduleFocusNotification(
             FOCUS_RETURN_NOTIFICATION_ID,
             'Dein Flug wartet',
-            `Kehre zu „${state.habitName}“ zurück, bevor dein Flug abstürzt.`,
+            `Zurück zu ${state.habitName}, sonst stürzt der Flug ab.`,
             current + 45_000,
           )
         }
@@ -116,7 +118,7 @@ export function FocusFlightOverlay() {
       if (document.visibilityState !== 'hidden') return
       void showFocusNotification(
         'Dein Flug wartet',
-        `Kehre zu „${focusFlight.habitName}“ zurück, bevor dein Flug abstürzt.`,
+        `Zurück zu ${focusFlight.habitName}, sonst stürzt der Flug ab.`,
       )
     }
     document.addEventListener('visibilitychange', notifyWhenAway)
@@ -163,7 +165,7 @@ export function FocusFlightOverlay() {
                 <span>FOKUSFLUG</span>
                 <strong className="numeric">{formatRemaining(remaining)}</strong>
               </div>
-              <div className="focus-task-chip"><span>{habit?.icon ?? '✦'}</span>{focusFlight.habitName}</div>
+              <div className="focus-task-chip"><span className="habit-icon"><Glyph name={resolveGlyph(habit?.icon)} size={16} /></span>{focusFlight.habitName}</div>
               <div className="focus-progress" aria-label={`${formatRemaining(remaining)} verbleibend`}>
                 <i style={{ transform: `scaleX(${Math.max(0, Math.min(1, remaining / (focusFlight.durationMinutes * 60_000)))})` }} />
               </div>
@@ -173,7 +175,9 @@ export function FocusFlightOverlay() {
 
           {focusFlight.status === 'landed' ? (
             <motion.div className="focus-result focus-landed-card" initial={{ scale: 0.82, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', damping: 17 }}>
-              <motion.div className="landing-plane" initial={{ x: -150, y: -90, rotate: -16 }} animate={{ x: 8, y: 0, rotate: 0 }} transition={{ duration: 1.15, ease: [0.16, 1, 0.3, 1] }}>✈</motion.div>
+              <motion.div className="landing-plane" initial={{ x: -150, y: -90, rotate: -16 }} animate={{ x: 8, y: 0, rotate: 0 }} transition={{ duration: 1.15, ease: [0.16, 1, 0.3, 1] }}>
+                <AircraftGlyph size={30} color="currentColor" rotationDegrees={-35} />
+              </motion.div>
               <div className="runway" aria-hidden="true"><i /><i /><i /></div>
               <p className="label-caps">{recovery ? 'Comeback gelandet' : 'Saubere Landung'}</p>
               <h2>{recovery ? `${focusFlight.recoveryDegrees ?? 0}° Kurs zurückgeholt.` : `${focusFlight.habitName} ist erledigt.`}</h2>
@@ -184,7 +188,7 @@ export function FocusFlightOverlay() {
 
           {focusFlight.status === 'crashed' ? (
             <motion.div className="focus-result focus-crashed-card" initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
-              <div className="crash-mark" aria-hidden="true">↘</div>
+              <div className="crash-mark" aria-hidden="true"><Glyph name="warning" size={26} /></div>
               <p className="label-caps">Flug abgebrochen</p>
               <h2>Du warst länger als 60 Sekunden weg.</h2>
               <span>{recovery ? 'Die Comeback-Mission bleibt verfügbar.' : `${focusFlight.habitName} wurde nicht abgehakt.`}</span>

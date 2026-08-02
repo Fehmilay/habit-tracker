@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clampFuel, fuelEarnedForStatuses, GAME_FUEL_COST } from './economy'
+import { clampFuel, fuelEarnedForStatuses } from './economy'
 
 describe('habit fuel economy', () => {
   it('only creates fuel from real habit outcomes', () => {
@@ -10,6 +10,5 @@ describe('habit fuel economy', () => {
   it('caps the tank and exposes a stable game cost', () => {
     expect(clampFuel(140)).toBe(100)
     expect(clampFuel(-5)).toBe(0)
-    expect(GAME_FUEL_COST).toBe(20)
   })
 })

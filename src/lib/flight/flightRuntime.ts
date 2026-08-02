@@ -34,6 +34,17 @@ export interface FlightRuntime extends FlightIntegrationState {
    * jumpy gesture never produces a jumpy camera.
    */
   zoomOut: number
+  /**
+   * Extra bank from the player's steering, in degrees.
+   *
+   * Kept separate from `currentRollDegrees` rather than folded into it: that
+   * one is the course model's output and is what the deviation readout and
+   * camera reason about, while this is a transient input flourish. Mixing
+   * them would make steering look like a course change.
+   */
+  steerRollDegrees: number
+  /** 0..1 damage severity, smoothed. Drives smoke, sparks and fire. */
+  damageSeverity: number
 }
 
 export function createFlightRuntime(headingDegrees = 0): FlightRuntime {
@@ -44,6 +55,8 @@ export function createFlightRuntime(headingDegrees = 0): FlightRuntime {
     elapsedSeconds: 0,
     ambientMotion: 1,
     zoomOut: 0,
+    steerRollDegrees: 0,
+    damageSeverity: 0,
   }
 }
 

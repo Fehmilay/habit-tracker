@@ -38,7 +38,19 @@ function getServerSupportSnapshot(): boolean {
 
 const noopSubscribe = () => () => {}
 
-export function FlightScene({ paused = false }: { paused?: boolean }) {
+interface FlightSceneProps {
+  paused?: boolean
+  /** Whether the endless ring course runs and steering moves the aircraft. */
+  interactive?: boolean
+  /** 0..1 share of recently rated habits that were missed. */
+  missRate?: number
+}
+
+export function FlightScene({
+  paused = false,
+  interactive = true,
+  missRate = 0,
+}: FlightSceneProps) {
   const supported = useSyncExternalStore(
     noopSubscribe,
     getSupportSnapshot,
@@ -49,7 +61,7 @@ export function FlightScene({ paused = false }: { paused?: boolean }) {
 
   return (
     <SceneErrorBoundary fallback={<SceneFallback2D reason="error" />}>
-      <FlightSceneCanvas paused={paused} />
+      <FlightSceneCanvas paused={paused} interactive={interactive} missRate={missRate} />
     </SceneErrorBoundary>
   )
 }

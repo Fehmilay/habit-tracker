@@ -1,4 +1,4 @@
-import type { AircraftDefinition, Habit, JourneyGoal } from './types'
+import type { Habit, JourneyGoal } from './types'
 
 const everyDay = [0, 1, 2, 3, 4, 5, 6]
 
@@ -6,7 +6,7 @@ export const DEFAULT_HABITS: Habit[] = [
   {
     id: 'gym',
     name: 'Gym',
-    icon: '🏋️',
+    icon: 'strength',
     cue: '45 Minuten Training',
     durationMinutes: 45,
     days: [0, 2, 4],
@@ -17,7 +17,7 @@ export const DEFAULT_HABITS: Habit[] = [
   {
     id: 'nutrition',
     name: 'Kalorienziel',
-    icon: '🥗',
+    icon: 'nutrition',
     cue: 'Im geplanten Rahmen bleiben',
     durationMinutes: 25,
     days: everyDay,
@@ -28,7 +28,7 @@ export const DEFAULT_HABITS: Habit[] = [
   {
     id: 'steps',
     name: '10k Schritte',
-    icon: '🚶',
+    icon: 'steps',
     cue: '10.000 Schritte sammeln',
     durationMinutes: 30,
     days: everyDay,
@@ -39,7 +39,7 @@ export const DEFAULT_HABITS: Habit[] = [
   {
     id: 'water',
     name: 'Wasser',
-    icon: '💧',
+    icon: 'water',
     cue: '2,5 Liter trinken',
     durationMinutes: 10,
     days: everyDay,
@@ -61,11 +61,3 @@ export const DEFAULT_JOURNEY: JourneyGoal = {
   destinationCity: 'New York',
   totalDistanceKm: 5840,
 }
-
-export const AIRCRAFT: AircraftDefinition[] = [
-  { id: 'trainer', name: 'Aero One', caption: 'Dein erster Kurs', requiredWeeks: 0, accent: '#dce8f6' },
-  { id: 'turboprop', name: 'Northstar', caption: 'Eine aktive Woche', requiredWeeks: 1, accent: '#8ff2d8' },
-  { id: 'regional', name: 'Pulse Jet', caption: 'Zwei aktive Wochen', requiredWeeks: 2, accent: '#7cc9ff' },
-  { id: 'longhaul', name: 'Long Range', caption: 'Vier aktive Wochen', requiredWeeks: 4, accent: '#ffd489' },
-  { id: 'velocity', name: 'Velocity X', caption: 'Acht aktive Wochen', requiredWeeks: 8, accent: '#d1a8ff' },
-]

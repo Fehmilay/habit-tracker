@@ -50,13 +50,13 @@ export function deviationSeverity(degrees: number): DeviationSeverity {
 export function deviationStatusLabel(degrees: number): string {
   switch (deviationSeverity(degrees)) {
     case 'on-course':
-      return 'Perfekt auf Kurs'
+      return 'Auf Kurs'
     case 'slight':
-      return 'Kursverlust · zurück zu 0°'
+      return 'Leicht daneben'
     case 'notable':
-      return 'Deutlich neben dem Zielkurs'
+      return 'Deutlich daneben'
     case 'severe':
-      return 'Ziel stark gefährdet'
+      return 'Kritisch'
   }
 }
 

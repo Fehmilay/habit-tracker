@@ -6,9 +6,21 @@ export function crossTrackDistanceKm(distanceKm: number, deviationDegrees: numbe
   return Math.round(distanceKm * Math.sin(radians))
 }
 
+/**
+ * Mean completion rate across the given records.
+ *
+ * Records with a missing or non-finite rate are skipped rather than summed.
+ * This state is reachable in practice: records are persisted to local storage
+ * and outlive app versions, so a profile written before `completionRate`
+ * existed would otherwise turn every projection in the UI into NaN.
+ */
 export function averageCompletion(records: DailyFlightRecord[]): number {
-  if (records.length === 0) return 1
-  return records.reduce((sum, record) => sum + record.completionRate, 0) / records.length
+  const rates = records
+    .map((record) => record.completionRate)
+    .filter((rate): rate is number => typeof rate === 'number' && Number.isFinite(rate))
+
+  if (rates.length === 0) return 1
+  return rates.reduce((sum, rate) => sum + rate, 0) / rates.length
 }
 
 export function projectedGoalValue(targetValue: number, records: DailyFlightRecord[]): number {

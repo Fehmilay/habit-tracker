@@ -2,15 +2,17 @@
 
 import { motion } from 'framer-motion'
 import dynamic from 'next/dynamic'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { FlightHud } from './FlightHud'
 import { FlightScene } from './FlightScene'
+import { CourseAlarm } from './CourseAlarm'
 import { FlightSequenceOverlay } from './FlightSequenceOverlay'
 import { FocusFlightOverlay } from './FocusFlightOverlay'
 import { LandingApproachOverlay } from './LandingApproachOverlay'
 import { useDayCompletionSequence } from './useDayCompletionSequence'
 import { usePinchAndWheelZoom } from './usePinchAndWheelZoom'
-import { GameOverlay } from '@/components/game/GameOverlay'
+import { LevelUpCard } from '@/components/game/LevelUpCard'
+import { SteeringLayer } from '@/components/game/SteeringLayer'
 import { HabitsPanel } from '@/components/habits/HabitsPanel'
 import { StatsPanel } from '@/components/stats/StatsPanel'
 import type { DailyFlightRecord } from '@/lib/journey/types'
@@ -19,6 +21,7 @@ import { useJourneyStore } from '@/store/journeyStore'
 import { prepareFocusNotifications, refreshWebServiceWorker } from '@/lib/notifications/focusNotifications'
 import { configureNativeChrome, focusHaptic } from '@/lib/native/ios'
 import { flightCycleProgress, localDateKey } from '@/lib/journey/date'
+import { recentMissRate } from '@/lib/flight/damage'
 
 type PageIndex = 0 | 1 | 2
 
@@ -33,8 +36,8 @@ export function FlightView() {
   const hydrated = useJourneyStore((state) => state.hydrated)
   const initializeJourney = useJourneyStore((state) => state.initializeJourney)
   const currentDeviation = useJourneyStore((state) => state.currentDeviationDegrees)
-  const gameMode = useJourneyStore((state) => state.gameMode)
   const focusFlight = useJourneyStore((state) => state.focusFlight)
+  const records = useJourneyStore((state) => state.records)
   const startFocusFlight = useJourneyStore((state) => state.startFocusFlight)
   const startRecoveryFlight = useJourneyStore((state) => state.startRecoveryFlight)
   const journeyStartDate = useJourneyStore((state) => state.journey.startDate)
@@ -75,7 +78,14 @@ export function FlightView() {
     start(record)
   }
 
-  const swipeEnabled = gameMode === 'idle' && !sequenceRunning && !focusFlight && !mapOpen && !landingOpen
+  const swipeEnabled = !sequenceRunning && !focusFlight && !mapOpen && !landingOpen
+  // The habit flight runs forever, but hands the controls over whenever
+  // something else owns the screen.
+  const flightInteractive = swipeEnabled && page === 1
+  const missRate = useMemo(
+    () => recentMissRate(records.map((record) => record.statuses)),
+    [records],
+  )
   // Zooming out to the globe only makes sense on the flight page itself, in
   // the normal chase view - not mid-manoeuvre, mid-game, or while another
   // sheet owns the gesture.
@@ -122,7 +132,11 @@ export function FlightView() {
       onPointerCancel={zoomHandlers.onPointerCancel}
     >
       <motion.div className="scene-stage" animate={{ opacity: page === 1 ? 1 : 0.22, scale: page === 1 ? 1 : 0.96 }} transition={{ duration: 0.45 }}>
-        <FlightScene paused={mapOpen || landingOpen} />
+        <FlightScene
+          paused={mapOpen || landingOpen}
+          interactive={flightInteractive}
+          missRate={missRate}
+        />
       </motion.div>
       <motion.div className="app-track" animate={{ x: `${page * -100}vw` }} transition={{ type: 'spring', stiffness: 280, damping: 34, mass: 0.85 }}>
         <HabitsPanel
@@ -144,12 +158,14 @@ export function FlightView() {
         <section className="flight-page" aria-label="Flug"><FlightHud onOpenHabits={() => setPage(0)} onOpenStats={() => setPage(2)} onOpenMap={() => setMapOpen(true)} onStartLanding={() => setLandingOpen(true)} /></section>
         <StatsPanel onBackToFlight={() => setPage(1)} />
       </motion.div>
-      {gameMode === 'idle' && !sequenceRunning && !focusFlight && !mapOpen ? (
+      {!sequenceRunning && !focusFlight && !mapOpen ? (
         <nav className="page-dots" aria-label="Bereiche">
           {['Habits', 'Flug', 'Stats'].map((label, index) => <button key={label} type="button" className={page === index ? 'active' : ''} onClick={() => setPage(index as PageIndex)} aria-label={label} />)}
         </nav>
       ) : null}
-      <GameOverlay />
+      {page === 1 ? <CourseAlarm /> : null}
+      <SteeringLayer active={flightInteractive} />
+      <LevelUpCard />
       <FocusFlightOverlay />
       <FlightSequenceOverlay onSkip={skip} />
       {mapOpen ? <WorldRouteMap onClose={() => setMapOpen(false)} /> : null}
