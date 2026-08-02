@@ -18,6 +18,12 @@ const STEER_KEYS = ['arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'w', 'a',
  * Carries no instructional text by design. The stick appears under the thumb
  * on contact, which teaches the control in one gesture; a caption would sit
  * on screen forever to explain something that explains itself once.
+ *
+ * Sits below the HUD in z-order and stops its own events from bubbling. The
+ * layering lets HUD buttons win a tap that lands on one of them, while the
+ * stopped propagation keeps a steering drag from also registering as the
+ * page-swipe gesture that lives on <main>. Pinch-to-globe therefore works in
+ * the upper part of the screen rather than inside the steering area.
  */
 export function SteeringLayer({ active }: { active: boolean }) {
   const combo = useJourneyStore((state) => state.gameCombo)
@@ -71,6 +77,10 @@ export function SteeringLayer({ active }: { active: boolean }) {
 
   const begin = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!active) return
+    // Steering and the page swipe are the same gesture - a horizontal drag -
+    // so the swipe handler on <main> must not also see it, or steering right
+    // would flip the app to the Stats page.
+    event.stopPropagation()
     event.currentTarget.setPointerCapture(event.pointerId)
     const box = event.currentTarget.getBoundingClientRect()
     dragStart.current = { x: event.clientX, y: event.clientY }
@@ -85,6 +95,7 @@ export function SteeringLayer({ active }: { active: boolean }) {
   }
 
   const move = (event: ReactPointerEvent<HTMLDivElement>) => {
+    event.stopPropagation()
     if (!dragStart.current || !event.currentTarget.hasPointerCapture(event.pointerId)) return
     const input = thumbInputFromDrag(
       event.clientX - dragStart.current.x,
@@ -96,6 +107,7 @@ export function SteeringLayer({ active }: { active: boolean }) {
   }
 
   const end = (event?: ReactPointerEvent<HTMLDivElement>) => {
+    event?.stopPropagation()
     if (event?.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId)
     }

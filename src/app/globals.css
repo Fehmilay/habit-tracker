@@ -166,6 +166,13 @@ button:active:not(:disabled) { transform: scale(.97); }
   transform-origin: center;
 }
 
+/* Transparent to pointers on purpose.
+   This element is 300vw wide and covers the whole viewport, so with the
+   default `pointer-events: auto` it swallowed every touch before anything
+   underneath - including the steering surface - could see it. Its children
+   opt back in individually: the side pages need to scroll, and the HUD's
+   buttons need to be tappable, but the empty flight area must fall through
+   to the steering layer below. */
 .app-track {
   position: absolute;
   inset: 0 auto 0 0;
@@ -174,6 +181,7 @@ button:active:not(:disabled) { transform: scale(.97); }
   width: 300vw;
   height: 100%;
   will-change: transform;
+  pointer-events: none;
 }
 
 .flight-page,
@@ -546,6 +554,7 @@ button:active:not(:disabled) { transform: scale(.97); }
 
 /* Side pages ------------------------------------------------------------- */
 .side-page {
+  pointer-events: auto;
   overflow-x: hidden;
   overflow-y: auto;
   padding: calc(var(--safe-top) + 32px) calc(var(--safe-right) + 20px) calc(var(--safe-bottom) + 34px) calc(var(--safe-left) + 20px);

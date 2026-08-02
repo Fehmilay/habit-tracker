@@ -45,7 +45,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `npm run start -- -p ${PORT}`,
+    // The app builds with `output: export`, so it is served as static files;
+    // `next start` refuses to run against such a build.
+    command: `npm run build && npx --yes serve@latest -s out -l ${PORT}`,
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
