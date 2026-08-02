@@ -40,6 +40,13 @@ export interface FlightStoreState {
   activeEventIndex: number
   sequenceRunning: boolean
 
+  /**
+   * Raw 0..1 "zoomed out to the globe" target, set directly by the wheel or
+   * pinch gesture. `FlightDriver` smooths this into `flightRuntime.zoomOut`
+   * every frame; nothing renders off this raw value directly.
+   */
+  zoomTarget: number
+
   setTargetDeviation: (degrees: number) => void
   addDeviation: (degrees: number) => void
   resetCourse: () => void
@@ -47,6 +54,8 @@ export interface FlightStoreState {
   setCameraMode: (mode: CameraMode) => void
   setActiveEventIndex: (index: number) => void
   setSequenceRunning: (running: boolean) => void
+  setZoomTarget: (value: number) => void
+  nudgeZoomTarget: (delta: number) => void
   /** Hard reset used by the dev controls and when the scene remounts. */
   resetScene: () => void
 }
@@ -67,6 +76,8 @@ export const useFlightStore = create<FlightStoreState>((set, get) => ({
 
   activeEventIndex: -1,
   sequenceRunning: false,
+
+  zoomTarget: 0,
 
   setTargetDeviation: (degrees) => {
     const { plannedHeadingDegrees } = get()
@@ -93,6 +104,9 @@ export const useFlightStore = create<FlightStoreState>((set, get) => ({
   setActiveEventIndex: (activeEventIndex) => set({ activeEventIndex }),
   setSequenceRunning: (sequenceRunning) => set({ sequenceRunning }),
 
+  setZoomTarget: (value) => set({ zoomTarget: clamp(value, 0, 1) }),
+  nudgeZoomTarget: (delta) => set((state) => ({ zoomTarget: clamp(state.zoomTarget + delta, 0, 1) })),
+
   resetScene: () => {
     const { plannedHeadingDegrees } = get()
     resetFlightRuntime(plannedHeadingDegrees)
@@ -102,6 +116,7 @@ export const useFlightStore = create<FlightStoreState>((set, get) => ({
       cameraMode: 'chase',
       activeEventIndex: -1,
       sequenceRunning: false,
+      zoomTarget: 0,
     })
   },
 }))

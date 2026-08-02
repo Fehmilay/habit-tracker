@@ -817,7 +817,7 @@ button:active:not(:disabled) { transform: scale(.97); }
 .aircraft-card { display: grid; min-height: 128px; align-content: center; justify-items: center; padding: 12px; border: 1px solid rgba(255,255,255,.08); border-radius: 17px; background: rgba(255,255,255,.03); scroll-snap-align: start; }
 .aircraft-card.selected { border-color: color-mix(in srgb, var(--aircraft-accent) 55%, transparent); background: color-mix(in srgb, var(--aircraft-accent) 10%, transparent); }
 .aircraft-card:disabled { opacity: .38; }
-.aircraft-glyph { color: var(--aircraft-accent); font-size: 2rem; transform: rotate(-12deg); }
+.aircraft-glyph { display: grid; place-items: center; filter: drop-shadow(0 0 6px color-mix(in srgb, var(--aircraft-accent) 55%, transparent)); }
 .aircraft-card strong { margin-top: 8px; font-size: .72rem; }
 .aircraft-card small { margin-top: 4px; color: var(--color-ink-muted); font-size: .55rem; text-align: center; }
 .pilot-progress-card { padding: 17px; border: 1px solid rgba(47,224,176,.16); border-radius: 19px; background: linear-gradient(135deg, rgba(47,224,176,.1), rgba(124,201,255,.045)); }
@@ -1002,7 +1002,7 @@ button:active:not(:disabled) { transform: scale(.97); }
 .world-airport-marker.destination circle:nth-child(2) { fill: #ffd489; }
 .world-airport-marker text { fill: #eaf6ff; font-family: var(--font-numeric); font-size: 12px; font-weight: 800; text-anchor: middle; paint-order: stroke; stroke: rgba(3,9,20,.9); stroke-width: 4px; }
 .world-map-plane circle { fill: rgba(5,12,23,.94); stroke: #c4e8ff; stroke-width: 2; filter: drop-shadow(0 0 8px rgba(124,201,255,.72)); }
-.world-map-plane text { fill: #c4e8ff; font-size: 15px; text-anchor: middle; }
+.world-map-plane-glyph { fill: #c4e8ff; }
 .world-map-header { position: absolute; top: calc(var(--safe-top) + 14px); left: 14px; right: 14px; display: grid; grid-template-columns: 42px 1fr auto; align-items: center; gap: 10px; padding: 9px; border: 1px solid rgba(255,255,255,.14); border-radius: 20px; background: rgba(5,12,22,.82); box-shadow: var(--shadow-panel); backdrop-filter: blur(22px) saturate(150%); }
 .world-map-header button { width: 40px; height: 40px; padding: 0; border: 0; border-radius: 50%; background: rgba(255,255,255,.08); font-size: 1.2rem; }
 .world-map-header > div { display: grid; gap: 2px; }

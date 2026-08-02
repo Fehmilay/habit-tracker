@@ -81,6 +81,23 @@ export const CAMERA_RIGS = {
   },
 } as const satisfies Record<string, CameraRig>
 
+/**
+ * Rig for the pulled-back globe view, reached by scrolling/pinching out on the
+ * flight scene.
+ *
+ * Not part of `CAMERA_RIGS` / `CameraMode`: those switch discretely between
+ * shots (chase, closeup, wide) for the check-in sequence, while the globe is a
+ * continuous gesture-driven blend layered on top of whichever of those is
+ * active (see `ChaseCamera`). Sharing the union would mean the day-completion
+ * sequence and an in-progress zoom gesture could fight over the same field.
+ */
+export const GLOBE_RIG: CameraRig = {
+  offset: { x: 0, y: 58, z: 132 },
+  lookAt: { x: 0, y: -18, z: -60 },
+  hFovPortrait: 48,
+  vFovLandscape: 52,
+}
+
 /** Guard against extreme distortion on unusually tall or narrow viewports. */
 export const MAX_VERTICAL_FOV = 78
 
@@ -147,6 +164,17 @@ export const AIRCRAFT = {
   length: 9.2,
   /** Tip-to-tip wingspan. */
   span: 9.4,
+} as const
+
+export const GLOBE = {
+  /** World-space centre the sphere sits at - behind and below the aircraft. */
+  center: { x: 0, y: -40, z: -80 },
+  radius: 46,
+  /** Zoom level (see flightRuntime.zoomOut) past which the globe starts fading in. */
+  fadeInStart: 0.28,
+  fadeInEnd: 0.62,
+  /** Zoom level past which the chase-view meshes are fully hidden. */
+  chaseHideAt: 0.5,
 } as const
 
 export const ENVIRONMENT = {

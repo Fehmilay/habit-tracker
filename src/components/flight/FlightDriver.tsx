@@ -29,6 +29,7 @@ interface FlightDriverProps {
  */
 export function FlightDriver({ ambientMotion }: FlightDriverProps) {
   const targetHeadingDegrees = useFlightStore((state) => state.targetHeadingDegrees)
+  const zoomTarget = useFlightStore((state) => state.zoomTarget)
   const gameMode = useJourneyStore((state) => state.gameMode)
 
   useFrame((_state, delta) => {
@@ -37,6 +38,10 @@ export function FlightDriver({ ambientMotion }: FlightDriverProps) {
 
     flightRuntime.elapsedSeconds += dt
     flightRuntime.ambientMotion = ambientMotion
+
+    // Smoothed before the early return so a mid-gesture mode switch (e.g. into
+    // the habit-flight mini-game) can't freeze the globe transition half-way.
+    flightRuntime.zoomOut = damp(flightRuntime.zoomOut, zoomTarget, 3.2, dt)
 
     if (gameMode === 'playing') {
       gameRuntime.planeX = damp(gameRuntime.planeX, gameRuntime.inputX * 6.4, 5.5, dt)

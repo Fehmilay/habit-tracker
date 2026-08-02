@@ -9,6 +9,7 @@ import { FlightSequenceOverlay } from './FlightSequenceOverlay'
 import { FocusFlightOverlay } from './FocusFlightOverlay'
 import { LandingApproachOverlay } from './LandingApproachOverlay'
 import { useDayCompletionSequence } from './useDayCompletionSequence'
+import { usePinchAndWheelZoom } from './usePinchAndWheelZoom'
 import { GameOverlay } from '@/components/game/GameOverlay'
 import { HabitsPanel } from '@/components/habits/HabitsPanel'
 import { StatsPanel } from '@/components/stats/StatsPanel'
@@ -75,15 +76,41 @@ export function FlightView() {
   }
 
   const swipeEnabled = gameMode === 'idle' && !sequenceRunning && !focusFlight && !mapOpen && !landingOpen
+  // Zooming out to the globe only makes sense on the flight page itself, in
+  // the normal chase view - not mid-manoeuvre, mid-game, or while another
+  // sheet owns the gesture.
+  const zoomEnabled = swipeEnabled && page === 1
+  const zoomHandlers = usePinchAndWheelZoom(zoomEnabled)
+
+  useEffect(() => {
+    // Leaving the flight page (or any other state above) mid-gesture must not
+    // strand the camera half-way to the globe.
+    if (!zoomEnabled) useFlightStore.getState().setZoomTarget(0)
+  }, [zoomEnabled])
 
   return (
     <main
       className="app-shell"
+      // The scene canvas sits behind `.app-track` in paint order and that
+      // track covers the full viewport with `pointer-events: auto` for its
+      // own buttons, so wheel/pinch/swipe input for the 3D view has to be
+      // captured up here rather than on the canvas itself.
+      onWheel={zoomHandlers.onWheel}
       onPointerDown={(event) => {
+        zoomHandlers.onPointerDown?.(event)
         if (!swipeEnabled) return
+        // A second simultaneous touch means a pinch is starting, not a swipe -
+        // drop any in-progress swipe tracking rather than let the two gestures
+        // fight over the same pointer data.
+        if (!event.isPrimary) {
+          pointerStart.current = null
+          return
+        }
         pointerStart.current = { x: event.clientX, y: event.clientY }
       }}
+      onPointerMove={zoomHandlers.onPointerMove}
       onPointerUp={(event) => {
+        zoomHandlers.onPointerUp?.(event)
         if (!swipeEnabled || !pointerStart.current) return
         const dx = event.clientX - pointerStart.current.x
         const dy = event.clientY - pointerStart.current.y
@@ -92,6 +119,7 @@ export function FlightView() {
         if (dx < 0) setPage((current) => Math.min(2, current + 1) as PageIndex)
         else setPage((current) => Math.max(0, current - 1) as PageIndex)
       }}
+      onPointerCancel={zoomHandlers.onPointerCancel}
     >
       <motion.div className="scene-stage" animate={{ opacity: page === 1 ? 1 : 0.22, scale: page === 1 ? 1 : 0.96 }} transition={{ duration: 0.45 }}>
         <FlightScene paused={mapOpen || landingOpen} />

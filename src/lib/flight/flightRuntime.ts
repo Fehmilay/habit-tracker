@@ -24,6 +24,16 @@ export interface FlightRuntime extends FlightIntegrationState {
   elapsedSeconds: number
   /** Scales all idle motion; 0 under prefers-reduced-motion. */
   ambientMotion: number
+  /**
+   * Smoothed 0..1 "pulled back to the globe" amount.
+   *
+   * Driven by `FlightDriver` off the store's raw `zoomTarget` (itself set
+   * directly by the wheel/pinch gesture), the same way heading and roll are
+   * driven off `targetHeadingDegrees`. Consumers - the camera, the globe, the
+   * chase-view meshes - read this each frame rather than the raw target, so a
+   * jumpy gesture never produces a jumpy camera.
+   */
+  zoomOut: number
 }
 
 export function createFlightRuntime(headingDegrees = 0): FlightRuntime {
@@ -33,6 +43,7 @@ export function createFlightRuntime(headingDegrees = 0): FlightRuntime {
     verticalOffset: 0,
     elapsedSeconds: 0,
     ambientMotion: 1,
+    zoomOut: 0,
   }
 }
 

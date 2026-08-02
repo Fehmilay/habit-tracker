@@ -133,7 +133,7 @@ function HabitEditor({ habit, onClose }: { habit?: Habit; onClose: () => void })
 
   const canContinue = step > 0 || Boolean(name.trim())
   return (
-    <div className="sheet-backdrop" role="presentation" onPointerDown={(event) => event.stopPropagation()}>
+    <div className="sheet-backdrop" role="presentation" onPointerDown={(event) => { event.stopPropagation(); if (event.target === event.currentTarget) onClose() }}>
       <div className="editor-sheet habit-editor-sheet" data-testid="habit-editor">
         <div className="sheet-handle" />
         <div className="sheet-title-row"><div><p className="label-caps-micro">Schritt {step + 1} von 3</p><h2>{['Dein Habit', 'Dein Rhythmus', 'Dein Fokusflug'][step]}</h2></div><button type="button" className="round-icon-button" onClick={onClose}>×</button></div>
@@ -182,7 +182,7 @@ function GoalEditor({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="sheet-backdrop" role="presentation" onPointerDown={(event) => event.stopPropagation()}>
+    <div className="sheet-backdrop" role="presentation" onPointerDown={(event) => { event.stopPropagation(); if (event.target === event.currentTarget) onClose() }}>
       <div className="editor-sheet" data-testid="goal-editor">
         <div className="sheet-handle" /><div className="sheet-title-row"><div><p className="label-caps-micro">Weltflug</p><h2>Ziel & Route</h2></div><button type="button" className="round-icon-button" onClick={onClose}>×</button></div>
         <label className="field"><span>Ziel</span><input value={title} onChange={(event) => setTitle(event.target.value)} /></label>

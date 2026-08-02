@@ -1,12 +1,15 @@
 'use client'
 
 import { Canvas } from '@react-three/fiber'
+import { useMemo } from 'react'
 import { ACESFilmicToneMapping } from 'three'
 import { Aircraft3D } from './Aircraft3D'
 import { AtlasTerrain } from './AtlasTerrain'
 import { ChaseCamera } from './ChaseCamera'
+import { ChaseViewFade } from './ChaseViewFade'
 import { CourseLine } from './CourseLine'
 import { DailyConfirmationRing } from './DailyConfirmationRing'
+import { GlobeView } from './GlobeView'
 import { RecoveryFocusRing } from './RecoveryFocusRing'
 import { DestinationAirport } from './DestinationAirport'
 import { FlightDriver } from './FlightDriver'
@@ -14,6 +17,7 @@ import { FlightEnvironment } from './FlightEnvironment'
 import { HabitRingCourse } from './HabitRingCourse'
 import { ProjectedCourse } from './ProjectedCourse'
 import { CAMERA_RIGS, ENVIRONMENT } from '@/lib/flight/sceneConfig'
+import { airportByIata, AIRPORTS } from '@/lib/maps/airports'
 import { useQualitySettings } from '@/lib/perf/quality'
 import { useDocumentVisible } from '@/lib/perf/useDocumentVisible'
 import { useReducedMotion } from '@/lib/perf/useReducedMotion'
@@ -24,6 +28,15 @@ import { useJourneyStore } from '@/store/journeyStore'
  *
  * Default-exported and loaded through `next/dynamic` with SSR disabled, so the
  * Three.js bundle is only fetched once we know the device can actually use it.
+ *
+ * The zoom-to-globe gesture is *not* wired up here, even though the globe it
+ * reveals is rendered here. `.app-track` - the sliding Habits/Flight/Stats
+ * container in `FlightView` - sits above this canvas in paint order and has
+ * `pointer-events: auto` across its full extent (it has to, for its own
+ * buttons), so it intercepts every wheel and pointer event before they would
+ * ever reach this component's DOM node. The gesture is wired up in
+ * `FlightView` instead, on `<main>`, alongside the swipe handling that
+ * already lives there for the same structural reason.
  */
 export default function FlightSceneCanvas({ paused = false }: { paused?: boolean }) {
   const quality = useQualitySettings()
@@ -31,10 +44,18 @@ export default function FlightSceneCanvas({ paused = false }: { paused?: boolean
   const documentVisible = useDocumentVisible()
   const gameMode = useJourneyStore((state) => state.gameMode)
   const gameRunning = gameMode === 'countdown' || gameMode === 'playing'
+  const originIata = useJourneyStore((state) => state.journey.originIata)
+  const destinationIata = useJourneyStore((state) => state.journey.destinationIata)
 
   // Reduced motion keeps course changes - they carry the meaning - but stops
   // the idle drift, turbulence and most of the parallax.
   const ambientMotion = prefersReducedMotion ? 0 : 1
+
+  const origin = useMemo(() => airportByIata(originIata, AIRPORTS[0]), [originIata])
+  const destination = useMemo(
+    () => airportByIata(destinationIata, AIRPORTS[5]),
+    [destinationIata],
+  )
 
   return (
     <Canvas
@@ -70,20 +91,30 @@ export default function FlightSceneCanvas({ paused = false }: { paused?: boolean
         showCloudDeck={quality.showCloudDeck}
         ambientMotion={ambientMotion}
       />
-      <AtlasTerrain reducedDetail={quality.tier === 'low'} />
 
-      {gameRunning ? (
-        <HabitRingCourse />
-      ) : (
-        <>
-          <CourseLine gateCount={quality.courseGateCount} />
-          <ProjectedCourse />
-          <DestinationAirport />
-        </>
-      )}
-      <DailyConfirmationRing />
-      <RecoveryFocusRing />
-      <Aircraft3D fuselageSegments={quality.fuselageSegments} />
+      <ChaseViewFade>
+        <AtlasTerrain reducedDetail={quality.tier === 'low'} />
+
+        {gameRunning ? (
+          <HabitRingCourse />
+        ) : (
+          <>
+            <CourseLine gateCount={quality.courseGateCount} />
+            <ProjectedCourse />
+            <DestinationAirport />
+          </>
+        )}
+        <DailyConfirmationRing />
+        <RecoveryFocusRing />
+        <Aircraft3D fuselageSegments={quality.fuselageSegments} />
+      </ChaseViewFade>
+
+      <GlobeView
+        originIata={origin.iata}
+        originCoordinates={origin.coordinates}
+        destinationIata={destination.iata}
+        destinationCoordinates={destination.coordinates}
+      />
     </Canvas>
   )
 }

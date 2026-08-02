@@ -6,6 +6,7 @@ import { PerspectiveCamera, Vector3 } from 'three'
 import {
   CAMERA_RIGS,
   CAMERA_TUNING,
+  GLOBE_RIG,
   verticalFovForAspect,
 } from '@/lib/flight/sceneConfig'
 import { clamp, damp, degToRad, safeDelta } from '@/lib/flight/flightMath'
@@ -55,6 +56,8 @@ export function ChaseCamera() {
   const desiredPosition = useRef(new Vector3())
   const desiredLookAt = useRef(new Vector3())
   const currentLookAt = useRef(new Vector3())
+  const globePosition = useRef(new Vector3())
+  const globeLookAt = useRef(new Vector3())
   const initialisedRef = useRef(false)
 
   useFrame((state, delta) => {
@@ -87,6 +90,7 @@ export function ChaseCamera() {
     // same size on a tall phone as on a desktop window.
     const targetFov = verticalFovForAspect(target, camera.aspect)
     rigRef.current.fov = snap ? targetFov : damp(rig.fov, targetFov, rigLambda, dt)
+    const globeFov = verticalFovForAspect(GLOBE_RIG, camera.aspect)
 
     // The camera's own heading lags the aircraft's, which is what makes a turn
     // read as the aircraft swinging away and the camera catching up.
@@ -105,9 +109,14 @@ export function ChaseCamera() {
 
     const yawRad = -degToRad(yawRef.current)
 
+    // Eased 0..1 amount the view has pulled back to the globe, smoothed once
+    // already by FlightDriver so a jumpy gesture never produces a jumpy camera.
+    const globeBlend = smoothstep01(flightRuntime.zoomOut)
+
     // The aircraft only ever bobs vertically; following a fraction of that
-    // keeps the shot alive without letting the horizon breathe.
-    const aircraftY = flightRuntime.verticalOffset * 0.3
+    // keeps the shot alive without letting the horizon breathe. Fades out with
+    // the globe blend so the pulled-back view holds still.
+    const aircraftY = flightRuntime.verticalOffset * 0.3 * (1 - globeBlend)
 
     desiredPosition.current
       .set(0, rigOffsetY, rigOffsetZ)
@@ -118,6 +127,21 @@ export function ChaseCamera() {
       .set(0, rigLookAtY, rigLookAtZ)
       .applyAxisAngle(UP_AXIS, yawRad)
       .setY(rigLookAtY + aircraftY)
+
+    if (globeBlend > 0.0005) {
+      // The globe rig deliberately does NOT rotate with the aircraft's yaw:
+      // the globe sits at a fixed point in world space (see sceneConfig.GLOBE),
+      // so a camera that kept turning with the aircraft while zoomed out would
+      // swing the whole Earth across the frame on every course change.
+      desiredPosition.current.lerp(
+        globePosition.current.set(GLOBE_RIG.offset.x, GLOBE_RIG.offset.y, GLOBE_RIG.offset.z),
+        globeBlend,
+      )
+      desiredLookAt.current.lerp(
+        globeLookAt.current.set(GLOBE_RIG.lookAt.x, GLOBE_RIG.lookAt.y, GLOBE_RIG.lookAt.z),
+        globeBlend,
+      )
+    }
 
     if (snap) {
       camera.position.copy(desiredPosition.current)
@@ -141,15 +165,18 @@ export function ChaseCamera() {
 
     camera.lookAt(currentLookAt.current)
 
-    // Partial bank, applied after lookAt so it rolls about the view axis.
-    const roll = clamp(
-      flightRuntime.currentRollDegrees * CAMERA_TUNING.rollFollow,
-      -CAMERA_TUNING.maxRollDegrees,
-      CAMERA_TUNING.maxRollDegrees,
-    )
+    // Partial bank, applied after lookAt so it rolls about the view axis. Fades
+    // out with the globe blend - a levelled-off view of the whole planet
+    // should never bank with the aircraft's own manoeuvres.
+    const roll =
+      clamp(
+        flightRuntime.currentRollDegrees * CAMERA_TUNING.rollFollow,
+        -CAMERA_TUNING.maxRollDegrees,
+        CAMERA_TUNING.maxRollDegrees,
+      ) * (1 - globeBlend)
     camera.rotateZ(-degToRad(roll))
 
-    const nextFov = rigRef.current.fov
+    const nextFov = rigRef.current.fov + (globeFov - rigRef.current.fov) * globeBlend
     if (Math.abs(camera.fov - nextFov) > 0.001) {
       camera.fov = nextFov
       camera.updateProjectionMatrix()
@@ -157,4 +184,10 @@ export function ChaseCamera() {
   })
 
   return null
+}
+
+/** Cubic smoothstep, used to ease the globe blend rather than lerp it linearly. */
+function smoothstep01(value: number): number {
+  const t = Math.min(1, Math.max(0, value))
+  return t * t * (3 - 2 * t)
 }

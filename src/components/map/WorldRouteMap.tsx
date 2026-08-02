@@ -79,7 +79,13 @@ export default function WorldRouteMap({ onClose }: { onClose: () => void }) {
   const destination = airportByIata(journey.destinationIata, AIRPORTS[5])
   const route = useMemo(() => greatCircle(origin.coordinates, destination.coordinates), [destination.coordinates, origin.coordinates])
   const routeSegments = useMemo(() => splitRouteAtDateline(route), [route])
-  const planePoint = project(route[Math.min(route.length - 1, Math.floor(progress * (route.length - 1)))])
+  const planeIndex = Math.min(route.length - 1, Math.floor(progress * (route.length - 1)))
+  const planePoint = project(route[planeIndex])
+  const planeAheadPoint = project(route[Math.min(route.length - 1, planeIndex + 1)])
+  const planeBearing = Math.atan2(
+    planeAheadPoint[0] - planePoint[0],
+    -(planeAheadPoint[1] - planePoint[1]),
+  ) * 180 / Math.PI
   const originPoint = project(origin.coordinates)
   const destinationPoint = project(destination.coordinates)
 
@@ -118,7 +124,14 @@ export default function WorldRouteMap({ onClose }: { onClose: () => void }) {
           {routeSegments.map((segment, index) => <path key={`route-${index}`} className="world-route-line" d={pathFromPoints(segment)} />)}
           <g className="world-airport-marker" transform={`translate(${originPoint[0]} ${originPoint[1]})`}><circle r="8" /><circle r="3" /><text y="-14">{origin.iata}</text></g>
           <g className="world-airport-marker destination" transform={`translate(${destinationPoint[0]} ${destinationPoint[1]})`}><circle r="10" /><circle r="3" /><text y="-16">{destination.iata}</text></g>
-          <g className="world-map-plane" transform={`translate(${planePoint[0]} ${planePoint[1]})`}><circle r="13" /><text y="5">✈</text></g>
+          <g className="world-map-plane" transform={`translate(${planePoint[0]} ${planePoint[1]})`}>
+            <circle r="13" />
+            <path
+              className="world-map-plane-glyph"
+              transform={`rotate(${planeBearing}) scale(0.62) translate(-12 -12)`}
+              d="M12 1.4c.8 0 1.35.98 1.5 2.7l.06 1.9 6.9 4.36c.4.25.64.7.64 1.18v1.02c0 .5-.42.87-.9.78l-6.64-1.22v3.9l2.36 1.7c.22.16.35.42.35.7v.98c0 .5-.44.87-.92.77L12 18.9l-3.35 1.19c-.48.1-.92-.27-.92-.77v-.98c0-.28.13-.54.35-.7l2.36-1.7v-3.9l-6.64 1.22c-.48.09-.9-.28-.9-.78v-1.02c0-.48.24-.93.64-1.18l6.9-4.36.06-1.9c.15-1.72.7-2.7 1.5-2.7Z"
+            />
+          </g>
         </svg>
       </div>
       <header className="world-map-header">
