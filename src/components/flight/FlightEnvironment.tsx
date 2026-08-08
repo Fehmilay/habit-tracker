@@ -240,6 +240,21 @@ function ReflectionEnvironment() {
  * so the difference is invisible and it saves recomputing every instance
  * orientation.
  */
+/**
+ * Frame-loop scratch objects.
+ *
+ * Module-level and reused, following the same pattern as the rest of the
+ * scene: the cloud field runs every frame over every instance, and allocating
+ * a matrix, three vectors and a quaternion per frame hands the garbage
+ * collector work purely so the code can read a line shorter.
+ */
+const SCRATCH_DIRECTION = new Vector3()
+const SCRATCH_MATRIX = new Matrix4()
+const SCRATCH_POSITION = new Vector3()
+const SCRATCH_QUATERNION = new Quaternion()
+const SCRATCH_SCALE = new Vector3()
+const SPIN_AXIS = new Vector3(0, 0, 1)
+
 function CloudField({
   count,
   ambientMotion,
@@ -309,19 +324,13 @@ function CloudField({
     // Face the camera's yaw, without copying its roll - clouds should never
     // appear to bank with the aircraft.
     if (groupRef.current) {
-      const direction = new Vector3()
-      state.camera.getWorldDirection(direction)
-      groupRef.current.rotation.y = Math.atan2(direction.x, direction.z) + Math.PI
+      state.camera.getWorldDirection(SCRATCH_DIRECTION)
+      groupRef.current.rotation.y =
+        Math.atan2(SCRATCH_DIRECTION.x, SCRATCH_DIRECTION.z) + Math.PI
     }
 
     scrollRef.current += speed * dt * (0.35 + 0.65 * ambientMotion)
     const scroll = scrollRef.current
-
-    const matrix = new Matrix4()
-    const position = new Vector3()
-    const quaternion = new Quaternion()
-    const axis = new Vector3(0, 0, 1)
-    const scale = new Vector3()
 
     clouds.forEach((cloud, index) => {
       // Wrap into the spawn..recycle band. Deriving Z rather than accumulating
@@ -329,10 +338,13 @@ function CloudField({
       const travelled = cloud.baseZ - ENVIRONMENT.cloudSpawnZ + scroll * cloud.speedFactor
       const z = ENVIRONMENT.cloudSpawnZ + (travelled % span)
 
-      position.set(cloud.x, cloud.y, z)
-      quaternion.setFromAxisAngle(axis, cloud.tilt)
-      scale.set(cloud.scale, cloud.scale * 0.62, 1)
-      mesh.setMatrixAt(index, matrix.compose(position, quaternion, scale))
+      SCRATCH_POSITION.set(cloud.x, cloud.y, z)
+      SCRATCH_QUATERNION.setFromAxisAngle(SPIN_AXIS, cloud.tilt)
+      SCRATCH_SCALE.set(cloud.scale, cloud.scale * 0.62, 1)
+      mesh.setMatrixAt(
+        index,
+        SCRATCH_MATRIX.compose(SCRATCH_POSITION, SCRATCH_QUATERNION, SCRATCH_SCALE),
+      )
     })
 
     mesh.instanceMatrix.needsUpdate = true

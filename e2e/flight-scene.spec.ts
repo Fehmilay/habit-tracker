@@ -1,13 +1,38 @@
 import { expect, test, type Page } from '@playwright/test'
 
+/**
+ * Land on the flight screen with a clean profile.
+ *
+ * A cleared profile now opens the setup flow rather than the HUD, so every
+ * test that wants the product itself has to walk through it first. That is the
+ * point of the flow - it is unskippable by design - and running it here keeps
+ * these tests exercising the same first-run path a real user takes.
+ */
 async function openFresh(page: Page) {
   await page.addInitScript(() => window.localStorage.clear())
   await page.goto('/')
+  await completeOnboarding(page)
   await expect(page.locator('canvas')).toBeVisible({ timeout: 45_000 })
   await expect(page.getByTestId('flight-hud')).toBeVisible()
   // The track springs into its initial position on mount too, so measurements
   // taken immediately after load are just as stale as after a page change.
   await waitForTrackToSettle(page)
+}
+
+async function completeOnboarding(page: Page) {
+  const onboarding = page.getByTestId('onboarding')
+  await expect(onboarding).toBeVisible({ timeout: 30_000 })
+  await page.getByTestId('onboarding-goal').fill('Testflug')
+  for (const step of [1, 2, 3, 4]) {
+    await page.getByTestId('onboarding-next').click()
+    // Each step is asserted rather than assumed: a click that lands before the
+    // previous step has committed would otherwise leave the flow one screen
+    // behind and fail much later with a confusing locator timeout.
+    if (step < 4) {
+      await expect(page.getByText(`Schritt ${step + 1} von 4`)).toBeVisible({ timeout: 10_000 })
+    }
+  }
+  await expect(onboarding).toHaveCount(0, { timeout: 15_000 })
 }
 
 const PAGE_TEST_IDS = { Habits: 'habits-page', Flug: 'flight-hud', Stats: 'stats-page' } as const
@@ -70,6 +95,60 @@ test.describe('Flight Habit product loop', () => {
     await expect(page.getByTestId('deviation-value')).toHaveText('0°')
     await expect(page.getByTestId('primary-action')).toBeVisible()
     await expect(page.getByText('JFK', { exact: true }).first()).toBeVisible()
+  })
+
+  test('a new profile has to set the journey up before it can fly', async ({ page }) => {
+    // Deliberately no `addInitScript(localStorage.clear)`: it re-runs on every
+    // navigation, so the reload at the end of this test would wipe the profile
+    // it is checking got saved. A fresh Playwright context is already empty.
+    await page.goto('/')
+    // The HUD must not be reachable behind the setup flow - rating a habit the
+    // flow is about to replace would throw the record away.
+    await expect(page.getByTestId('onboarding')).toBeVisible({ timeout: 30_000 })
+    await expect(page.getByTestId('flight-hud')).toHaveCount(0)
+    // And the first step refuses to advance without a goal.
+    await expect(page.getByTestId('onboarding-next')).toBeDisabled()
+
+    await completeOnboarding(page)
+    await expect(page.getByTestId('flight-hud')).toBeVisible()
+    // Setup is remembered, so a reload lands straight on the flight.
+    await page.reload()
+    await expect(page.getByTestId('flight-hud')).toBeVisible({ timeout: 30_000 })
+    await expect(page.getByTestId('onboarding')).toHaveCount(0)
+  })
+
+  test('the instruments read the habit record back as flight figures', async ({ page }) => {
+    await openFresh(page)
+    await expect(page.getByTestId('instrument-bar')).toBeVisible()
+    // Nothing flown yet: the chain is on the ground, so the panel asks for the
+    // open habits rather than talking about the course.
+    await expect(page.getByTestId('hud-next-action')).toContainText('offen')
+
+    await page.getByTestId('instrument-bar').click()
+    const sheet = page.getByTestId('instrument-sheet')
+    await expect(sheet).toBeVisible()
+    for (const code of ['ALT', 'SPD', 'V/S', 'FUEL', 'ETA', 'XTK']) {
+      await expect(sheet.getByText(code, { exact: true })).toBeVisible()
+    }
+    await expect(page.getByTestId('instrument-next-action')).toBeVisible()
+  })
+
+  test('a confirmed day starts the chain and shows it', async ({ page }) => {
+    await openFresh(page)
+    await openArea(page, 'Habits')
+    await expect(page.getByTestId('chain-banner')).toBeVisible()
+
+    await page.getByTestId('mark-all-complete').click()
+    await page.getByTestId('complete-day').click()
+    await expect(page.getByTestId('sequence-overlay')).toBeVisible()
+    // The chain beat is the payoff of the whole sequence.
+    await expect(page.getByTestId('sequence-streak')).toHaveText('1', { timeout: 20_000 })
+    await page.getByTestId('sequence-skip').click()
+
+    await expect(page.getByTestId('streak-chip')).toContainText('1')
+    await openArea(page, 'Stats')
+    await expect(page.getByTestId('streak-hero')).toContainText('1')
+    await expect(page.getByTestId('history-grid')).toBeVisible()
   })
 
   test('the flight needs no starting - it is already running', async ({ page }) => {
@@ -154,13 +233,14 @@ test.describe('Flight Habit product loop', () => {
     await page.getByTestId('sequence-skip').click()
     await expect(page.getByTestId('sequence-overlay')).toHaveCount(0)
     // The readout is deliberately unsigned-negative: it frames deviation as
-    // ground lost against the goal ("1 degree off"), not as a signed heading,
-    // so a drift in either direction reads as a minus.
+    // ground lost against the goal, not as a signed heading, so a drift in
+    // either direction reads as a minus. The exact figure depends on which
+    // habits are due today, so this asserts the sign and not the magnitude.
     await expect
       .poll(async () => (await page.getByTestId('deviation-value').textContent()) ?? '', {
         timeout: 30_000,
       })
-      .toContain('1°')
+      .toMatch(/^−[0-9]/)
     await openArea(page, 'Stats')
     await expect(page.getByTestId('stats-page')).toBeVisible()
     await expect(page.getByText(/neben JFK/i).first()).toBeVisible()

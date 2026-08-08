@@ -1,12 +1,14 @@
 'use client'
 
 import { AnimatePresence, motion } from 'framer-motion'
+import { Glyph, resolveGlyph } from '@/components/icons/Glyph'
 import { motionEase } from '@/lib/design/tokens'
-import { fuelForHabitStatus } from '@/lib/game/economy'
+import { reserveForHabitStatus } from '@/lib/game/economy'
 import { projectedGoalValue } from '@/lib/journey/projection'
 import type { HabitStatus } from '@/lib/journey/types'
 import { deviationStatusLabel, formatDeviation } from '@/lib/flight/formatDeviation'
 import { useFlightStore } from '@/store/flightStore'
+import { useStreak } from '@/store/hooks'
 import { useJourneyStore } from '@/store/journeyStore'
 
 const STATUS_LABELS: Record<HabitStatus, string> = {
@@ -22,6 +24,7 @@ export function FlightSequenceOverlay({ onSkip }: { onSkip: () => void }) {
   const sequenceRunning = useFlightStore((state) => state.sequenceRunning)
   const records = useJourneyStore((state) => state.records)
   const journey = useJourneyStore((state) => state.journey)
+  const streak = useStreak()
   const record = records.at(-1)
 
   if (!sequenceRunning || !record) return null
@@ -35,7 +38,7 @@ export function FlightSequenceOverlay({ onSkip }: { onSkip: () => void }) {
             <motion.ul key="events" className="sequence-events" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               {record.events.map((event, index) => (
                 <motion.li key={`${event.habitId}-${index}`} initial={{ opacity: 0, y: 14 }} animate={{ opacity: index <= activeEventIndex ? 1 : 0, y: index <= activeEventIndex ? 0 : 14 }} transition={{ duration: 0.38, ease: motionEase.decelerate }}>
-                  <span><strong>{event.icon} {event.label}</strong><small>{STATUS_LABELS[event.status]}{fuelForHabitStatus(event.status) > 0 ? ` · +${fuelForHabitStatus(event.status)} Treibstoff` : ''}</small></span>
+                  <span><strong><i className="sequence-event-glyph"><Glyph name={resolveGlyph(event.icon)} size={15} /></i>{event.label}</strong><small>{STATUS_LABELS[event.status]}{reserveForHabitStatus(event.status) > 0 ? ` · +${reserveForHabitStatus(event.status)} Reserve` : ''}</small></span>
                   <b className="numeric">{event.degrees === 0 ? '0°' : formatDeviation(event.degrees)}</b>
                 </motion.li>
               ))}
@@ -46,6 +49,21 @@ export function FlightSequenceOverlay({ onSkip }: { onSkip: () => void }) {
               <p className="label-caps">Neuer Kurs</p>
               <strong className="numeric" data-testid="sequence-result">{formatDeviation(record.finalDeviationDegrees)}</strong>
               <span>{deviationStatusLabel(record.finalDeviationDegrees)}</span>
+            </motion.div>
+          ) : null}
+          {animationPhase === 'streak' ? (
+            <motion.div key="streak" className="sequence-streak" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', damping: 18, stiffness: 220 }}>
+              <p className="label-caps">{streak.current > 1 ? 'Kette gehalten' : 'Kette gestartet'}</p>
+              <div className="sequence-streak-figure">
+                <Glyph name="flame" size={40} />
+                <strong className="numeric" data-testid="sequence-streak">{streak.current}</strong>
+              </div>
+              <span>{streak.current === 1 ? 'Tag am Stück' : 'Tage am Stück'}</span>
+              {streak.current >= streak.best && streak.current > 1 ? (
+                <small className="sequence-streak-record">Neuer Rekord</small>
+              ) : (
+                <small>Rekord {streak.best}</small>
+              )}
             </motion.div>
           ) : null}
           {animationPhase === 'projection' ? (

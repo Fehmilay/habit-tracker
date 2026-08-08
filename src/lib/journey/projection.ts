@@ -28,6 +28,21 @@ export function projectedGoalValue(targetValue: number, records: DailyFlightReco
   return Math.round(targetValue * rate * 10) / 10
 }
 
+/**
+ * The 30-day completion percentage, or null before there is anything to
+ * average.
+ *
+ * `averageCompletion` returns 1 for an empty list because it is the neutral
+ * element for the projections that multiply by it. Rendering that number
+ * directly told every brand new user their goal forecast was 100% - a
+ * fabricated confidence, on day one, about a habit they had not done yet.
+ */
+export function completionPercent(records: DailyFlightRecord[]): number | null {
+  const window = records.slice(-30)
+  if (window.length === 0) return null
+  return Math.round(averageCompletion(window) * 100)
+}
+
 export function recoveryDaysRequired(deviationDegrees: number, dueHabits: Habit[]): number {
   if (deviationDegrees <= 0) return 0
   const dailyCorrection = dueHabits.reduce((sum, habit) => sum + habit.impact, 0)

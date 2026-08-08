@@ -8,19 +8,25 @@ import { FlightScene } from './FlightScene'
 import { CourseAlarm } from './CourseAlarm'
 import { FlightSequenceOverlay } from './FlightSequenceOverlay'
 import { FocusFlightOverlay } from './FocusFlightOverlay'
+import { InstrumentSheet } from './InstrumentSheet'
 import { LandingApproachOverlay } from './LandingApproachOverlay'
+import { ReturnCard } from './ReturnCard'
 import { useDayCompletionSequence } from './useDayCompletionSequence'
 import { usePinchAndWheelZoom } from './usePinchAndWheelZoom'
+import { AchievementToast } from '@/components/game/AchievementToast'
 import { LevelUpCard } from '@/components/game/LevelUpCard'
 import { SteeringLayer } from '@/components/game/SteeringLayer'
 import { HabitsPanel } from '@/components/habits/HabitsPanel'
+import { OnboardingFlow } from '@/components/onboarding/OnboardingFlow'
+import { SettingsSheet } from '@/components/settings/SettingsSheet'
 import { StatsPanel } from '@/components/stats/StatsPanel'
 import type { DailyFlightRecord } from '@/lib/journey/types'
 import { useFlightStore } from '@/store/flightStore'
 import { useJourneyStore } from '@/store/journeyStore'
 import { prepareFocusNotifications, refreshWebServiceWorker } from '@/lib/notifications/focusNotifications'
-import { configureNativeChrome, focusHaptic } from '@/lib/native/ios'
-import { flightCycleProgress, localDateKey } from '@/lib/journey/date'
+import { armWebReminder, syncDailyReminders } from '@/lib/notifications/reminders'
+import { configureNativeChrome, focusHaptic, setHapticsEnabled } from '@/lib/native/ios'
+import { flightCycleProgress, isHabitDue, localDateKey } from '@/lib/journey/date'
 import { recentMissRate } from '@/lib/flight/damage'
 
 type PageIndex = 0 | 1 | 2
@@ -31,12 +37,20 @@ export function FlightView() {
   const [page, setPage] = useState<PageIndex>(1)
   const [mapOpen, setMapOpen] = useState(false)
   const [landingOpen, setLandingOpen] = useState(false)
+  const [instrumentsOpen, setInstrumentsOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const pointerStart = useRef<{ x: number; y: number } | null>(null)
   const sceneInitialised = useRef(false)
   const hydrated = useJourneyStore((state) => state.hydrated)
+  const onboarded = useJourneyStore((state) => state.onboarded)
+  const settings = useJourneyStore((state) => state.settings)
   const initializeJourney = useJourneyStore((state) => state.initializeJourney)
+  const reconcileCalendar = useJourneyStore((state) => state.reconcileCalendar)
+  const pendingReturn = useJourneyStore((state) => state.pendingReturn)
   const currentDeviation = useJourneyStore((state) => state.currentDeviationDegrees)
   const focusFlight = useJourneyStore((state) => state.focusFlight)
+  const habits = useJourneyStore((state) => state.habits)
+  const drafts = useJourneyStore((state) => state.drafts)
   const records = useJourneyStore((state) => state.records)
   const startFocusFlight = useJourneyStore((state) => state.startFocusFlight)
   const startRecoveryFlight = useJourneyStore((state) => state.startRecoveryFlight)
@@ -65,26 +79,83 @@ export function FlightView() {
     void refreshWebServiceWorker()
   }, [])
 
+  /**
+   * Close the calendar out on arrival, and again whenever the app is brought
+   * back to the front.
+   *
+   * The second half matters more than it looks: a phone that keeps this app
+   * suspended for a week resumes the same JS context, so without a
+   * visibility-driven sweep the day would silently never roll over.
+   */
   useEffect(() => {
-    if (!hydrated) return
+    if (!hydrated || !onboarded) return
+    reconcileCalendar()
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') reconcileCalendar()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', onVisible)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', onVisible)
+    }
+  }, [hydrated, onboarded, reconcileCalendar])
+
+  useEffect(() => {
+    setHapticsEnabled(settings.hapticsEnabled)
+  }, [settings.hapticsEnabled])
+
+  const today = localDateKey()
+  const dayClosed = useMemo(
+    () => records.some((record) => record.date === today),
+    [records, today],
+  )
+  const openHabits = useMemo(
+    () => habits.filter((habit) => isHabitDue(habit, today) && !drafts[habit.id]).length,
+    [habits, drafts, today],
+  )
+
+  // The reminders are reconciled from state rather than fired at the moment
+  // something happens: the only thing that decides whether tonight's nudge is
+  // owed is whether the day is still open, and that is a fact about the store,
+  // not an event.
+  useEffect(() => {
+    if (!hydrated || !onboarded) return
+    void syncDailyReminders({ settings, dayClosed, openHabits })
+    return armWebReminder({ settings, dayClosed, openHabits })
+  }, [hydrated, onboarded, settings, dayClosed, openHabits])
+
+  /**
+   * Reveal the cycle landing on the first open after a cycle ends.
+   *
+   * This used to fire only while `cycle.day === 30`, which is exactly one
+   * calendar day per cycle: not opening the app that Tuesday meant thirty days
+   * of check-ins produced no ceremony at all and the next cycle started in
+   * silence. Gating on "a cycle has completed and has not been landed" instead
+   * makes the payoff impossible to miss.
+   */
+  useEffect(() => {
+    if (!hydrated || !onboarded || pendingReturn) return
     const cycle = flightCycleProgress(journeyStartDate, localDateKey())
-    if (cycle.day !== 30 || lastLanding?.cycle === cycle.cycle) return
+    const completedCycle = cycle.day === 30 ? cycle.cycle : cycle.cycle - 1
+    if (completedCycle < 1 || (lastLanding?.cycle ?? 0) >= completedCycle) return
     const reveal = window.setTimeout(() => setLandingOpen(true), 0)
     return () => window.clearTimeout(reveal)
-  }, [hydrated, journeyStartDate, lastLanding?.cycle])
+  }, [hydrated, onboarded, journeyStartDate, lastLanding?.cycle, pendingReturn])
 
   const handleComplete = (record: DailyFlightRecord) => {
     setPage(1)
     start(record)
   }
 
-  const swipeEnabled = !sequenceRunning && !focusFlight && !mapOpen && !landingOpen
+  const sheetOpen = mapOpen || landingOpen || instrumentsOpen || settingsOpen || Boolean(pendingReturn)
+  const swipeEnabled = !sequenceRunning && !focusFlight && !sheetOpen
   // The habit flight runs forever, but hands the controls over whenever
   // something else owns the screen.
   const flightInteractive = swipeEnabled && page === 1
   const missRate = useMemo(
-    () => recentMissRate(records.map((record) => record.statuses)),
-    [records],
+    () => (settings.showDamage ? recentMissRate(records.map((record) => record.statuses)) : 0),
+    [records, settings.showDamage],
   )
   // Zooming out to the globe only makes sense on the flight page itself, in
   // the normal chase view - not mid-manoeuvre, mid-game, or while another
@@ -97,6 +168,10 @@ export function FlightView() {
     // strand the camera half-way to the globe.
     if (!zoomEnabled) useFlightStore.getState().setZoomTarget(0)
   }, [zoomEnabled])
+
+  // Setup owns the whole screen. Rendering the HUD behind it would let someone
+  // rate a habit that the flow is about to replace.
+  if (hydrated && !onboarded) return <OnboardingFlow />
 
   return (
     <main
@@ -136,6 +211,7 @@ export function FlightView() {
           paused={mapOpen || landingOpen}
           interactive={flightInteractive}
           missRate={missRate}
+          showDamage={settings.showDamage}
         />
       </motion.div>
       <motion.div className="app-track" animate={{ x: `${page * -100}vw` }} transition={{ type: 'spring', stiffness: 280, damping: 34, mass: 0.85 }}>
@@ -155,19 +231,32 @@ export function FlightView() {
             void prepareFocusNotifications()
           }}
         />
-        <section className="flight-page" aria-label="Flug"><FlightHud onOpenHabits={() => setPage(0)} onOpenStats={() => setPage(2)} onOpenMap={() => setMapOpen(true)} onStartLanding={() => setLandingOpen(true)} /></section>
-        <StatsPanel onBackToFlight={() => setPage(1)} />
+        <section className="flight-page" aria-label="Flug">
+          <FlightHud
+            onOpenHabits={() => setPage(0)}
+            onOpenStats={() => setPage(2)}
+            onOpenMap={() => setMapOpen(true)}
+            onOpenInstruments={() => setInstrumentsOpen(true)}
+            onOpenSettings={() => setSettingsOpen(true)}
+            onStartLanding={() => setLandingOpen(true)}
+          />
+        </section>
+        <StatsPanel onBackToFlight={() => setPage(1)} onOpenSettings={() => setSettingsOpen(true)} />
       </motion.div>
-      {!sequenceRunning && !focusFlight && !mapOpen ? (
+      {!sequenceRunning && !focusFlight && !sheetOpen ? (
         <nav className="page-dots" aria-label="Bereiche">
           {['Habits', 'Flug', 'Stats'].map((label, index) => <button key={label} type="button" className={page === index ? 'active' : ''} onClick={() => setPage(index as PageIndex)} aria-label={label} />)}
         </nav>
       ) : null}
       {page === 1 ? <CourseAlarm /> : null}
       <SteeringLayer active={flightInteractive} />
+      <ReturnCard />
+      <AchievementToast />
       <LevelUpCard />
       <FocusFlightOverlay />
       <FlightSequenceOverlay onSkip={skip} />
+      {instrumentsOpen ? <InstrumentSheet onClose={() => setInstrumentsOpen(false)} /> : null}
+      {settingsOpen ? <SettingsSheet onClose={() => setSettingsOpen(false)} /> : null}
       {mapOpen ? <WorldRouteMap onClose={() => setMapOpen(false)} /> : null}
       {landingOpen ? <LandingApproachOverlay onClose={() => setLandingOpen(false)} /> : null}
     </main>

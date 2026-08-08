@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
-import { gameRuntime, thumbInputFromDrag } from '@/lib/game/gameRuntime'
+import { gameRuntime, markInput, thumbInputFromDrag } from '@/lib/game/gameRuntime'
 import { useJourneyStore } from '@/store/journeyStore'
 
 const STEER_KEYS = ['arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'w', 'a', 's', 'd']
@@ -52,6 +52,7 @@ export function SteeringLayer({ active }: { active: boolean }) {
       if (!STEER_KEYS.includes(key)) return
       event.preventDefault()
       pressed.add(key)
+      markInput()
       apply()
     }
     const keyUp = (event: KeyboardEvent) => {
@@ -90,6 +91,7 @@ export function SteeringLayer({ active }: { active: boolean }) {
     }
     gameRuntime.inputX = 0
     gameRuntime.inputY = 0
+    markInput()
     setStick(0, 0)
     setEngaged(true)
   }
@@ -103,6 +105,7 @@ export function SteeringLayer({ active }: { active: boolean }) {
     )
     gameRuntime.inputX = input.inputX
     gameRuntime.inputY = input.inputY
+    markInput()
     setStick(input.displayX, input.displayY)
   }
 

@@ -9,6 +9,14 @@ export interface Habit {
   durationMinutes?: number
   /** Number of calendar days this habit belongs to the active flight. */
   challengeDays?: number
+  /**
+   * Day the challenge window started.
+   *
+   * Separate from `createdAt` so adding a 30-day challenge to a habit you have
+   * had for months starts a fresh window instead of one that expired long ago.
+   * Absent on older saved habits, which fall back to `createdAt`.
+   */
+  challengeStartedAt?: string
   days: number[]
   impact: number
   archived: boolean
@@ -46,8 +54,27 @@ export interface DailyFlightRecord {
   crossTrackKm: number
   completionRate: number
   events: DeviationEvent[]
-  fuelEarned?: number
+  reserveEarned?: number
+  /** Set when the day was filed after the fact rather than on the day. */
+  backfilled?: boolean
+  /**
+   * Set when nobody filed the day and the app closed it out as missed.
+   *
+   * Distinguished from a human "missed" so the history can show the two
+   * differently - one is an admission, the other is an absence.
+   */
+  autoMissed?: boolean
   completedAt: string
+}
+
+/** What the app closed out while nobody was looking. */
+export interface ReturnSummary {
+  /** Date keys that were auto-filed, oldest first. */
+  days: string[]
+  /** Degrees of course added by the absence. */
+  addedDegrees: number
+  /** Chain length before the absence, so the card can say what it cost. */
+  streakBefore: number
 }
 
 export type AircraftId = 'trainer' | 'turboprop' | 'regional' | 'longhaul' | 'velocity'
@@ -57,17 +84,34 @@ export interface HabitGameProgress {
   level: number
   bestCombo: number
   /**
-   * Retained only so previously saved profiles rehydrate without loss. The
-   * flight no longer costs anything to start - it never stops - so nothing
-   * reads this any more.
+   * The reserve tank, 0..100. Earned from real habit outcomes only and spent
+   * to freeze a missed day so the chain survives it.
    */
-  fuel: number
-  totalFuelEarned: number
+  reserve: number
+  totalReserveEarned: number
   successfulLandings: number
   ringsFlown: number
+  /** Comeback missions actually flown to a landing. */
+  recoveriesCompleted: number
 }
 
-export type RecoveryMissionStatus = 'available' | 'completed'
+export interface AppSettings {
+  /** Daily nudge to close the day out. */
+  reminderEnabled: boolean
+  /** Local wall-clock time of that nudge. */
+  reminderHour: number
+  reminderMinute: number
+  /** Second nudge, only fired when the day is still open. */
+  lastCallEnabled: boolean
+  lastCallHour: number
+  hapticsEnabled: boolean
+  /** Lets someone turn the damage drama off without turning motion off. */
+  showDamage: boolean
+  /** Automatically spend reserve to bridge a missed day. */
+  autoFreeze: boolean
+}
+
+export type RecoveryMissionStatus = 'available' | 'completed' | 'expired'
 
 export interface RecoveryMission {
   id: string

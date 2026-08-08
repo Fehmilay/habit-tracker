@@ -127,6 +127,52 @@ export function createFanTexture(size = 128): Texture | null {
   return finish(canvas)
 }
 
+/**
+ * A pill-shaped caption, drawn once per label.
+ *
+ * Lives here rather than inside a component so the habit-ring course can build
+ * one texture per habit up front and swap the sprite's `map` in the frame
+ * loop. Re-rendering a React sprite every time a ring is re-dealt would redraw
+ * a 768x192 canvas and upload a fresh texture roughly every four seconds.
+ */
+export function createLabelTexture(
+  text: string,
+  subtext?: string,
+  color = '#c4e8ff',
+): Texture | null {
+  if (typeof document === 'undefined') return null
+  const canvas = document.createElement('canvas')
+  canvas.width = 768
+  canvas.height = 192
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
+  ctx.fillStyle = 'rgba(5, 10, 22, 0.76)'
+  ctx.beginPath()
+  ctx.roundRect(18, 16, 732, 160, 44)
+  ctx.fill()
+  ctx.strokeStyle = `${color}88`
+  ctx.lineWidth = 4
+  ctx.stroke()
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillStyle = color
+  ctx.font = '700 62px system-ui, sans-serif'
+  ctx.fillText(text.toUpperCase(), 384, subtext ? 78 : 96)
+  if (subtext) {
+    ctx.fillStyle = 'rgba(242, 246, 251, 0.72)'
+    ctx.font = '500 28px system-ui, sans-serif'
+    ctx.fillText(subtext.toUpperCase(), 384, 132)
+  }
+
+  const texture = new CanvasTexture(canvas)
+  texture.minFilter = LinearFilter
+  texture.magFilter = LinearFilter
+  texture.needsUpdate = true
+  return texture
+}
+
 /** A single soft dot for the star field. */
 export function createStarTexture(size = 32): Texture | null {
   const canvas = createCanvas(size)

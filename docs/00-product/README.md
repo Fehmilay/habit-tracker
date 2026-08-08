@@ -32,6 +32,22 @@ lauffähig und damit später mit Capacitor als iOS-/Android-App verpackbar.
 - `src/lib/design/tokens.ts` – Design-Tokens
 - `src/lib/flight/demoJourney.ts` – feste Demo-Reise für Phase 1
 
+## Produktschleife
+
+Beim ersten Start führt ein vierstufiges Setup durch Ziel, Route, Habits und
+Erinnerungszeit — die App öffnet nicht mehr auf fremden Gewohnheiten. Danach:
+
+1. **Abends** erinnert eine lokale Benachrichtigung an den offenen Tag.
+2. **Der Check-in** bewertet jeden fälligen Habit als erledigt, teilweise, verfehlt oder
+   nicht relevant und bewegt den Kurs.
+3. **Die Sequenz** zeigt Ereignisse, neuen Kurs, **Kette** und Prognose.
+4. **Abwesenheit wird abgerechnet**: nicht bestätigte Tage schließt die App selbst als
+   verpasst — sonst wäre Wegsehen billiger als Ehrlichkeit (siehe `15-retention`).
+5. **Alle 30 Tage** landet der Zyklus und wird aus echten Check-ins bewertet.
+
+Details: `15-retention` (Kette, Reserve, Meilensteine, Erinnerungen) und `16-instruments`
+(das Flugzeug als ablesbares Werkzeug).
+
 ## Hauptansicht
 
 Die Hauptansicht ist die 3D-Flugszene aus der Verfolgerperspektive. Eine optionale, offline gebündelte Weltkarte zeigt die reale Route, ohne die Hauptansicht zu ersetzen.

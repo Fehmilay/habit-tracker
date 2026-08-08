@@ -30,6 +30,20 @@ export type GlyphName =
   | 'globe'
   | 'warning'
   | 'level'
+  | 'calendar'
+  | 'clock'
+  | 'refresh'
+  | 'target'
+  | 'aircraft'
+  | 'compass'
+  | 'flame'
+  | 'settings'
+  | 'trophy'
+  | 'bell'
+  | 'download'
+  | 'upload'
+  | 'chevronDown'
+  | 'skip'
 
 /** Stroke-based paths, drawn on a 24x24 grid. */
 const STROKE_PATHS: Partial<Record<GlyphName, string>> = {
@@ -53,6 +67,25 @@ const STROKE_PATHS: Partial<Record<GlyphName, string>> = {
   globe: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18ZM3.5 9.5h17M3.5 14.5h17M12 3c2.4 2.4 3.6 5.4 3.6 9S14.4 18.6 12 21c-2.4-2.4-3.6-5.4-3.6-9S9.6 5.4 12 3Z',
   warning: 'M12 4.5 21 19.5H3L12 4.5ZM12 10v4.5M12 17.4v.2',
   level: 'M4 19h4V9H4v10ZM10 19h4V4h-4v15ZM16 19h4v-7h-4v7Z',
+  calendar:
+    'M4 6.5A1.5 1.5 0 0 1 5.5 5h13A1.5 1.5 0 0 1 20 6.5v12A1.5 1.5 0 0 1 18.5 20h-13A1.5 1.5 0 0 1 4 18.5v-12ZM4 10h16M8.5 3v4M15.5 3v4',
+  clock: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18ZM12 7.5V12l3 2',
+  refresh: 'M20 12a8 8 0 1 1-2.6-5.9M20 4v4.5h-4.5',
+  target: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18ZM12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM12 11.4v1.2',
+  aircraft: 'M12 3c.9 0 1.5 1.3 1.5 3.2v2.4l7 4.2v2.1l-7-2.1v3.7l2.4 1.7v1.6L12 18.9l-3.9 1.9v-1.6l2.4-1.7v-3.7l-7 2.1v-2.1l7-4.2V6.2C10.5 4.3 11.1 3 12 3Z',
+  compass: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18ZM15.5 8.5l-2 5-5 2 2-5 5-2Z',
+  flame: 'M12 21c3.6 0 6-2.4 6-5.6 0-4.4-4.4-6-4.4-9.9 0 0-2.4 1.1-2.4 4.1 0 1.7-1.2 2.2-1.9 1.4-.5-.6-.6-1.5-.6-1.5S6 11 6 15.4C6 18.6 8.4 21 12 21Z',
+  settings:
+    'M12 9.2a2.8 2.8 0 1 0 0 5.6 2.8 2.8 0 0 0 0-5.6ZM19.4 14a1.6 1.6 0 0 0 .3 1.8l.1.1a1.9 1.9 0 1 1-2.7 2.7l-.1-.1a1.6 1.6 0 0 0-2.7 1.1v.3a1.9 1.9 0 1 1-3.8 0v-.2a1.6 1.6 0 0 0-2.8-1.1l-.1.1A1.9 1.9 0 1 1 4.9 16l.1-.1A1.6 1.6 0 0 0 3.9 13h-.3a1.9 1.9 0 1 1 0-3.8h.2A1.6 1.6 0 0 0 4.9 6.4L4.8 6.3A1.9 1.9 0 1 1 7.5 3.6l.1.1a1.6 1.6 0 0 0 1.8.3h.1a1.6 1.6 0 0 0 1-1.5v-.3a1.9 1.9 0 1 1 3.8 0v.2a1.6 1.6 0 0 0 2.7 1.1l.2-.1a1.9 1.9 0 1 1 2.7 2.7l-.1.1a1.6 1.6 0 0 0-.3 1.8v.1a1.6 1.6 0 0 0 1.5 1h.3a1.9 1.9 0 1 1 0 3.8h-.2a1.6 1.6 0 0 0-1.5 1Z',
+  trophy:
+    'M7 4h10v5.5a5 5 0 0 1-10 0V4ZM7 6H4.5v1.5A3.5 3.5 0 0 0 8 11M17 6h2.5v1.5A3.5 3.5 0 0 1 16 11M12 14.5V18M8.5 20.5h7',
+  bell: 'M12 3.5a5.5 5.5 0 0 1 5.5 5.5c0 4.2 1.5 5.5 1.5 5.5H5s1.5-1.3 1.5-5.5A5.5 5.5 0 0 1 12 3.5ZM10 18a2 2 0 0 0 4 0',
+  download: 'M12 4v11M7.5 10.5 12 15l4.5-4.5M4.5 19.5h15',
+  upload: 'M12 15V4M7.5 8.5 12 4l4.5 4.5M4.5 19.5h15',
+  chevronDown: 'M5 9l7 7 7-7',
+  // "Not applicable": the international no-symbol, not a cross - a cross here
+  // would read as a second way of saying "missed".
+  skip: 'M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17ZM6 18 18 6',
 }
 
 /** Solid paths, for glyphs that read better filled. */

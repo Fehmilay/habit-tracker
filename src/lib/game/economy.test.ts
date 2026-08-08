@@ -1,14 +1,27 @@
 import { describe, expect, it } from 'vitest'
-import { clampFuel, fuelEarnedForStatuses } from './economy'
+import {
+  clampReserve,
+  freezesAvailable,
+  reserveEarnedForStatuses,
+  RESERVE_PER_FREEZE,
+} from './economy'
 
-describe('habit fuel economy', () => {
-  it('only creates fuel from real habit outcomes', () => {
-    expect(fuelEarnedForStatuses({ gym: 'completed', water: 'partial', steps: 'missed' })).toBe(33)
-    expect(fuelEarnedForStatuses({ gym: 'missed' })).toBe(0)
+describe('reserve economy', () => {
+  it('only creates reserve from real habit outcomes', () => {
+    expect(reserveEarnedForStatuses({ gym: 'completed', water: 'partial', steps: 'missed' })).toBe(33)
+    expect(reserveEarnedForStatuses({ gym: 'missed' })).toBe(0)
+    expect(reserveEarnedForStatuses({ gym: 'not_relevant' })).toBe(0)
   })
 
-  it('caps the tank and exposes a stable game cost', () => {
-    expect(clampFuel(140)).toBe(100)
-    expect(clampFuel(-5)).toBe(0)
+  it('caps the tank', () => {
+    expect(clampReserve(140)).toBe(100)
+    expect(clampReserve(-5)).toBe(0)
+  })
+
+  it('converts the tank into whole days of chain protection', () => {
+    expect(freezesAvailable(0)).toBe(0)
+    expect(freezesAvailable(RESERVE_PER_FREEZE - 1)).toBe(0)
+    expect(freezesAvailable(RESERVE_PER_FREEZE)).toBe(1)
+    expect(freezesAvailable(100)).toBe(3)
   })
 })

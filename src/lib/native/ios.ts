@@ -14,8 +14,22 @@ export async function configureNativeChrome(): Promise<void> {
   }
 }
 
+/**
+ * Haptics master switch.
+ *
+ * A module-level flag rather than a store read: `focusHaptic` is called from
+ * inside the render loop when a ring is scored, and subscribing that call site
+ * to a React store would put a store read on the hot path to save one boolean.
+ * `FlightView` mirrors the setting here whenever it changes.
+ */
+let hapticsEnabled = true
+
+export function setHapticsEnabled(enabled: boolean): void {
+  hapticsEnabled = enabled
+}
+
 export function focusHaptic(kind: 'start' | 'success' | 'failure'): void {
-  if (!Capacitor.isNativePlatform()) return
+  if (!hapticsEnabled || !Capacitor.isNativePlatform()) return
   if (kind === 'success') {
     void Haptics.notification({ type: NotificationType.Success })
     return
@@ -28,6 +42,6 @@ export function focusHaptic(kind: 'start' | 'success' | 'failure'): void {
 }
 
 export function selectionHaptic(): void {
-  if (!Capacitor.isNativePlatform()) return
+  if (!hapticsEnabled || !Capacitor.isNativePlatform()) return
   void Haptics.selectionStart().then(() => Haptics.selectionChanged()).then(() => Haptics.selectionEnd())
 }

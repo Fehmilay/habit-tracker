@@ -18,14 +18,23 @@ const GRADE_COPY = {
   alternate: { eyebrow: 'Ausweichlandung', title: 'Das Ziel wurde verfehlt.', detail: 'Spielpunkte konnten fehlende echte Habit-Tage nicht verdecken.' },
 } as const
 
-export function LandingApproachOverlay({ onClose }: { onClose: () => void }) {
+interface LandingApproachOverlayProps {
+  onClose: () => void
+  /** The cycle being landed. Defaults to the one that has just ended. */
+  cycle?: number
+}
+
+export function LandingApproachOverlay({ onClose, cycle: forcedCycle }: LandingApproachOverlayProps) {
   const journey = useJourneyStore((state) => state.journey)
   const habits = useJourneyStore((state) => state.habits)
   const records = useJourneyStore((state) => state.records)
   const deviation = useJourneyStore((state) => state.currentDeviationDegrees)
   const lastLanding = useJourneyStore((state) => state.lastLanding)
   const recordLanding = useJourneyStore((state) => state.recordLanding)
-  const cycle = flightCycleProgress(journey.startDate, localDateKey()).cycle
+  // The landing can now be revealed days after the cycle boundary, so the
+  // cycle being scored is not necessarily the one the calendar is in.
+  const live = flightCycleProgress(journey.startDate, localDateKey())
+  const cycle = forcedCycle ?? Math.max(1, live.day === 30 ? live.cycle : live.cycle - 1)
   const existingResult = lastLanding?.cycle === cycle ? lastLanding : null
   const [phase, setPhase] = useState<LandingPhase>(existingResult ? 'result' : 'briefing')
   const resultWritten = useRef(Boolean(existingResult))

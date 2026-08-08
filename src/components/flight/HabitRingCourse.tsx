@@ -1,10 +1,20 @@
 'use client'
 
 import { useFrame } from '@react-three/fiber'
-import { useMemo, useRef } from 'react'
-import { AdditiveBlending, type Group, type Mesh, MeshBasicMaterial } from 'three'
-import { gameRuntime } from '@/lib/game/gameRuntime'
+import { useLayoutEffect, useMemo, useRef } from 'react'
+import {
+  AdditiveBlending,
+  Color,
+  type Group,
+  type Mesh,
+  MeshBasicMaterial,
+  type SpriteMaterial,
+  type Texture,
+} from 'three'
+import { gameRuntime, isEngaged } from '@/lib/game/gameRuntime'
 import { safeDelta } from '@/lib/flight/flightMath'
+import { createLabelTexture } from '@/lib/flight/textures'
+import { isHabitDue, localDateKey } from '@/lib/journey/date'
 import { focusHaptic } from '@/lib/native/ios'
 import { useJourneyStore } from '@/store/journeyStore'
 
@@ -17,6 +27,11 @@ const SCORE_Z = 2
 const GAME_SPEED = 19
 /** Squared hit radius: generous enough to feel fair on a phone. */
 const HIT_RADIUS_SQUARED = 12.25
+
+const NEUTRAL = new Color('#c4e8ff')
+const OPEN = new Color('#ffd489')
+const HIT = new Color('#2fe0b0')
+const MISS = new Color('#e2555f')
 
 /**
  * Lateral/vertical offsets the rings cycle through.
@@ -45,6 +60,13 @@ interface RingSlot {
   result: boolean | null
 }
 
+interface RingHabit {
+  id: string
+  name: string
+  /** Due today and still unrated: the ring the player should care about. */
+  open: boolean
+}
+
 /**
  * The endless habit-ring course.
  *
@@ -53,19 +75,33 @@ interface RingSlot {
  * and each one that passes is scored and immediately re-dealt far ahead with
  * the next habit and next pattern position. That keeps the geometry count
  * fixed no matter how long someone flies.
+ *
+ * Each ring carries the name of the habit it stands for, and the ones still
+ * open today burn gold. That is the whole reason the game sits inside a habit
+ * tracker rather than beside it: flying it rehearses the list you have not
+ * finished, so the loop that kills time also reminds you what is left.
  */
 export function HabitRingCourse({ active }: { active: boolean }) {
   const habits = useJourneyStore((state) => state.habits)
+  const drafts = useJourneyStore((state) => state.drafts)
+  const records = useJourneyStore((state) => state.records)
   const registerRing = useJourneyStore((state) => state.registerGameRing)
 
   const groupRefs = useRef<Array<Group | null>>([])
   const materialRefs = useRef<Array<MeshBasicMaterial | null>>([])
   const dealt = useRef(0)
 
-  const ringHabits = useMemo(
-    () => habits.filter((habit) => !habit.archived),
-    [habits],
-  )
+  const ringHabits = useMemo<RingHabit[]>(() => {
+    const today = localDateKey()
+    const closed = records.some((record) => record.date === today)
+    return habits
+      .filter((habit) => !habit.archived)
+      .map((habit) => ({
+        id: habit.id,
+        name: habit.name,
+        open: !closed && isHabitDue(habit, today) && !drafts[habit.id],
+      }))
+  }, [habits, drafts, records])
 
   const slots = useRef<RingSlot[]>(
     Array.from({ length: RING_SLOTS }, (_value, index) => ({
@@ -75,6 +111,36 @@ export function HabitRingCourse({ active }: { active: boolean }) {
       result: null,
     })),
   )
+
+  const labelMaterials = useRef<Array<SpriteMaterial | null>>([])
+
+  /**
+   * One caption texture per habit, built up front.
+   *
+   * A slot changes habit every time it is re-dealt - roughly every four
+   * seconds - so drawing the caption from React state would redraw a canvas
+   * and upload a texture on that cadence. Instead the frame loop points the
+   * sprite's `map` at an already-uploaded texture, which costs a reference
+   * assignment.
+   */
+  const labelTextures = useMemo(
+    () =>
+      ringHabits.map((habit) =>
+        createLabelTexture(
+          habit.name,
+          habit.open ? 'heute offen' : undefined,
+          habit.open ? '#ffd489' : '#c4e8ff',
+        ),
+      ),
+    [ringHabits],
+  )
+
+  useLayoutEffect(() => {
+    const textures = labelTextures
+    return () => {
+      for (const texture of textures) texture?.dispose()
+    }
+  }, [labelTextures])
 
   useFrame((_state, delta) => {
     const dt = safeDelta(delta)
@@ -94,7 +160,10 @@ export function HabitRingCourse({ active }: { active: boolean }) {
 
         slot.result = hit
         registerRing(hit)
-        focusHaptic(hit ? 'success' : 'failure')
+        // Only when someone is actually flying. The course scores forever, so
+        // an ungated buzz here is an error haptic every four seconds at a phone
+        // lying face-down on a table.
+        if (isEngaged()) focusHaptic(hit ? 'success' : 'failure')
       }
 
       // Once well behind the camera, re-deal this slot to the back of the queue.
@@ -114,11 +183,28 @@ export function HabitRingCourse({ active }: { active: boolean }) {
         group.rotation.z += dt * 0.35
       }
 
+      const habitIndex = slot.habit % ringHabits.length
+      const habit = ringHabits[habitIndex]
+
       const material = materialRefs.current[index]
       if (material) {
-        material.color.set(
-          slot.result === true ? '#2fe0b0' : slot.result === false ? '#e2555f' : '#c4e8ff',
+        material.color.copy(
+          slot.result === true
+            ? HIT
+            : slot.result === false
+              ? MISS
+              : habit?.open
+                ? OPEN
+                : NEUTRAL,
         )
+      }
+
+      const label = labelMaterials.current[index]
+      const texture: Texture | null = labelTextures[habitIndex] ?? null
+      if (label && label.map !== texture) {
+        label.map = texture
+        label.opacity = texture ? 1 : 0
+        label.needsUpdate = true
       }
     }
   })
@@ -131,41 +217,56 @@ export function HabitRingCourse({ active }: { active: boolean }) {
   // on the very next frame anyway.
   return (
     <group name="habit-ring-course">
-      {Array.from({ length: RING_SLOTS }, (_value, index) => (
-        <group
-          key={index}
-          ref={(group) => {
-            groupRefs.current[index] = group
-          }}
-        >
-          <mesh
-            ref={(mesh: Mesh | null) => {
-              materialRefs.current[index] = (mesh?.material as MeshBasicMaterial) ?? null
+      {Array.from({ length: RING_SLOTS }, (_value, index) => {
+        return (
+          <group
+            key={index}
+            ref={(group) => {
+              groupRefs.current[index] = group
             }}
           >
-            <torusGeometry args={[RING_RADIUS, 0.16, 10, 48]} />
-            <meshBasicMaterial
-              color="#c4e8ff"
-              transparent
-              opacity={0.92}
-              blending={AdditiveBlending}
-              depthWrite={false}
-              toneMapped={false}
-            />
-          </mesh>
-          <mesh>
-            <torusGeometry args={[RING_RADIUS + 0.28, 0.045, 8, 48]} />
-            <meshBasicMaterial
-              color="#7cc9ff"
-              transparent
-              opacity={0.4}
-              blending={AdditiveBlending}
-              depthWrite={false}
-              toneMapped={false}
-            />
-          </mesh>
-        </group>
-      ))}
+            <mesh
+              ref={(mesh: Mesh | null) => {
+                materialRefs.current[index] = (mesh?.material as MeshBasicMaterial) ?? null
+              }}
+            >
+              <torusGeometry args={[RING_RADIUS, 0.16, 10, 48]} />
+              <meshBasicMaterial
+                color="#c4e8ff"
+                transparent
+                opacity={0.92}
+                blending={AdditiveBlending}
+                depthWrite={false}
+                toneMapped={false}
+              />
+            </mesh>
+            <mesh>
+              <torusGeometry args={[RING_RADIUS + 0.28, 0.045, 8, 48]} />
+              <meshBasicMaterial
+                color="#7cc9ff"
+                transparent
+                opacity={0.4}
+                blending={AdditiveBlending}
+                depthWrite={false}
+                toneMapped={false}
+              />
+            </mesh>
+            {/* Caption: the map is pointed at the right habit texture in the
+                frame loop, so this sprite is created once and never re-renders. */}
+            <sprite position={[0, RING_RADIUS + 1.7, 0]} scale={[7.4, 1.85, 1]} renderOrder={30}>
+              <spriteMaterial
+                ref={(material: SpriteMaterial | null) => {
+                  labelMaterials.current[index] = material
+                }}
+                transparent
+                opacity={0}
+                depthWrite={false}
+                toneMapped={false}
+              />
+            </sprite>
+          </group>
+        )
+      })}
     </group>
   )
 }

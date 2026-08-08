@@ -2,31 +2,44 @@
 
 import { motion } from 'framer-motion'
 import { DeviationReadout } from './DeviationReadout'
+import { InstrumentBar } from './InstrumentBar'
 import { Glyph } from '@/components/icons/Glyph'
 import { motionEase } from '@/lib/design/tokens'
 import { daysBetween, flightCycleProgress, isHabitDue, localDateKey } from '@/lib/journey/date'
-import { averageCompletion } from '@/lib/journey/projection'
 import { formatKilometres } from '@/lib/flight/formatDeviation'
 import { levelProgress } from '@/lib/game/progression'
-import { useFlightStore } from '@/store/flightStore'
+import { type AnimationPhase, useFlightStore } from '@/store/flightStore'
+import { useInstruments, useStreak } from '@/store/hooks'
 import { useJourneyStore } from '@/store/journeyStore'
+
+/** Sequence phases whose overlay occupies the middle of the screen. */
+const OVERLAID_PHASES = new Set<AnimationPhase>(['events', 'result', 'streak', 'projection'])
 
 interface FlightHudProps {
   onOpenHabits: () => void
   onOpenStats: () => void
   onOpenMap: () => void
+  onOpenInstruments: () => void
+  onOpenSettings: () => void
   onStartLanding: () => void
 }
 
 /**
  * The heads-up display.
  *
- * Stripped to numbers and glyphs. Everything here is either a live figure or
- * a control; the explanatory captions the previous version carried
- * ("Habit Flight", fuel cost, "ZIEHEN ZUM LENKEN") described a round-based
- * game that no longer exists - the flight simply runs.
+ * Numbers and glyphs only. Three things earn their place on top of the scene:
+ * where the aircraft is pointing, how long the chain is, and what to do next.
+ * Everything else - the level, the hangar, the history - lives one swipe away,
+ * because a HUD that answers every question answers none of them at a glance.
  */
-export function FlightHud({ onOpenHabits, onOpenStats, onOpenMap, onStartLanding }: FlightHudProps) {
+export function FlightHud({
+  onOpenHabits,
+  onOpenStats,
+  onOpenMap,
+  onOpenInstruments,
+  onOpenSettings,
+  onStartLanding,
+}: FlightHudProps) {
   const sequenceRunning = useFlightStore((state) => state.sequenceRunning)
   const animationPhase = useFlightStore((state) => state.animationPhase)
   const journey = useJourneyStore((state) => state.journey)
@@ -34,25 +47,30 @@ export function FlightHud({ onOpenHabits, onOpenStats, onOpenMap, onStartLanding
   const drafts = useJourneyStore((state) => state.drafts)
   const records = useJourneyStore((state) => state.records)
   const progress = useJourneyStore((state) => state.progress)
+  const streak = useStreak()
+  const readout = useInstruments()
 
   const today = localDateKey()
   const flightCycle = flightCycleProgress(journey.startDate, today)
   const due = habits.filter((habit) => isHabitDue(habit, today))
   const rated = due.filter((habit) => drafts[habit.id]).length
+  const closed = records.some((record) => record.date === today)
   const dayIndex = Math.min(journey.totalDays, daysBetween(journey.startDate) + 1)
-  const remainingDays = Math.max(0, journey.totalDays - dayIndex)
-  const remainingDistance = Math.round(journey.totalDistanceKm * (remainingDays / journey.totalDays))
-  const projection = Math.round(averageCompletion(records.slice(-30)) * 100)
+  const remainingDistance = formatKilometres(readout.remainingDistanceKm)
   const level = levelProgress(progress.experience)
   const dimmed = sequenceRunning && animationPhase !== 'idle'
 
   return (
     <div className="flight-hud" data-testid="flight-hud">
-      <motion.header animate={{ opacity: dimmed ? 0.1 : 1 }} transition={{ duration: 0.4, ease: motionEase.standard }}>
+      {/* Header and instrument bar travel together so the column below them
+          keeps exactly three flex children and the deviation readout stays
+          where it is. */}
+      <motion.div className="hud-top" animate={{ opacity: dimmed ? 0.1 : 1 }} transition={{ duration: 0.4, ease: motionEase.standard }}>
+      <header>
         <button type="button" className="destination-button" onClick={onOpenMap} aria-label={`Weltkarte: ${journey.destinationCity}`}>
           <strong className="numeric">{journey.destinationIata}</strong>
           <span>{journey.destinationCity}</span>
-          <small className="numeric">{formatKilometres(remainingDistance)} KM</small>
+          <small className="numeric">{remainingDistance} KM</small>
         </button>
 
         {flightCycle.day === 30 ? (
@@ -67,20 +85,46 @@ export function FlightHud({ onOpenHabits, onOpenStats, onOpenMap, onStartLanding
           </div>
         )}
 
-        <button type="button" className="stats-shortcut" onClick={onOpenStats} aria-label="Insights öffnen">
-          <Glyph name="arrowUpRight" size={18} />
-        </button>
-      </motion.header>
+        <div className="hud-corner-actions">
+          <button type="button" className="stats-shortcut" onClick={onOpenSettings} aria-label="Einstellungen öffnen">
+            <Glyph name="settings" size={17} />
+          </button>
+          <button type="button" className="stats-shortcut" onClick={onOpenStats} aria-label="Insights öffnen">
+            <Glyph name="arrowUpRight" size={18} />
+          </button>
+        </div>
+      </header>
+
+      <InstrumentBar onOpen={onOpenInstruments} />
+      </motion.div>
 
       <motion.div
         className="deviation-anchor"
-        animate={{ opacity: animationPhase === 'events' || animationPhase === 'result' ? 0.1 : 1 }}
+        // Every phase that paints over the centre of the screen, not just the
+        // first two - the projection beat used to land on top of the readout.
+        animate={{ opacity: OVERLAID_PHASES.has(animationPhase) ? 0.1 : 1 }}
       >
         <DeviationReadout />
       </motion.div>
 
       <motion.footer animate={{ opacity: dimmed ? 0.1 : 1 }} transition={{ duration: 0.4, ease: motionEase.standard }}>
+        {/* The one sentence worth acting on, computed by the instrument model.
+            It sits directly above the check-in button so reading it and doing
+            it are the same gesture. */}
+        <p className="hud-next-action" data-testid="hud-next-action">{readout.nextAction}</p>
+
         <div className="journey-strip">
+          <button
+            type="button"
+            className="journey-streak"
+            data-state={streak.current === 0 ? 'cold' : streak.atRisk ? 'risk' : 'hot'}
+            data-testid="streak-chip"
+            onClick={onOpenStats}
+            aria-label={`Kette: ${streak.current} Tage, Rekord ${streak.best}`}
+          >
+            <Glyph name="flame" size={14} />
+            <strong className="numeric">{streak.current}</strong>
+          </button>
           <span>
             <small>TAG</small>
             <strong className="numeric">{dayIndex}<b>/{journey.totalDays}</b></strong>
@@ -90,14 +134,18 @@ export function FlightHud({ onOpenHabits, onOpenStats, onOpenMap, onStartLanding
             <strong className="numeric">{level.level}</strong>
             <i aria-hidden="true"><b style={{ width: `${level.ratio * 100}%` }} /></i>
           </span>
-          <span className="journey-goal">
-            <small>ZIEL</small>
-            <strong className="numeric">{projection}%</strong>
-          </span>
         </div>
 
         <div className="flight-actions">
-          <button className="checkin-button" type="button" onClick={onOpenHabits} data-testid="primary-action" aria-label={`Habits: ${rated} von ${due.length} bewertet`}>
+          <button
+            className="checkin-button"
+            type="button"
+            onClick={onOpenHabits}
+            data-testid="primary-action"
+            data-state={closed ? 'done' : rated === due.length && due.length > 0 ? 'ready' : 'open'}
+            aria-label={`Habits: ${rated} von ${due.length} bewertet`}
+          >
+            {closed ? <Glyph name="check" size={17} /> : null}
             <strong className="numeric">{rated}<b>/{due.length}</b></strong>
             <Glyph name="chevronRight" size={16} />
           </button>

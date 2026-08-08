@@ -19,6 +19,8 @@ interface FlightDriverProps {
   steeringActive: boolean
   /** 0..1 share of recently rated habits that were missed. */
   missRate: number
+  /** False eases the damage away instead of tracking the course. */
+  damageEnabled: boolean
 }
 
 /** How far steering can push the aircraft off the camera's centreline. */
@@ -42,7 +44,7 @@ const STEER_ROLL_DEGREES = 20
  * not overwrite it. The player nudges the aircraft around within the shot; the
  * course underneath it keeps being whatever their habits made it.
  */
-export function FlightDriver({ ambientMotion, steeringActive, missRate }: FlightDriverProps) {
+export function FlightDriver({ ambientMotion, steeringActive, missRate, damageEnabled }: FlightDriverProps) {
   const targetHeadingDegrees = useFlightStore((state) => state.targetHeadingDegrees)
   const zoomTarget = useFlightStore((state) => state.zoomTarget)
   const plannedHeadingDegrees = useFlightStore((state) => state.plannedHeadingDegrees)
@@ -84,7 +86,9 @@ export function FlightDriver({ ambientMotion, steeringActive, missRate }: Flight
     // aircraft visibly starts smoking during the turn that puts it off course,
     // not a second later.
     const deviation = flightRuntime.currentHeadingDegrees - plannedHeadingDegrees
-    const target = damageFromCourse(deviation, missRate).severity
+    // Turning the damage off eases it away rather than cutting it: a burning
+    // aircraft that pops clean between frames reads as a bug, not a setting.
+    const target = damageEnabled ? damageFromCourse(deviation, missRate).severity : 0
     // Damage builds faster than it clears: falling apart should feel immediate,
     // recovering should feel earned.
     const lambda = target > flightRuntime.damageSeverity ? 1.6 : 0.6

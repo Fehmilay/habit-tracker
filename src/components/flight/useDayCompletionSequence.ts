@@ -8,6 +8,7 @@ const EVENT_INTERVAL_MS = 680
 const TRANSITION_MS = 420
 const REACTION_MS = 2100
 const RESULT_MS = 1450
+const STREAK_MS = 1800
 const PROJECTION_MS = 1900
 
 export function useDayCompletionSequence() {
@@ -67,6 +68,11 @@ export function useDayCompletionSequence() {
       current.setCameraMode('wide')
     })
     elapsed += RESULT_MS
+    // The chain lands between the course result and the forecast on purpose:
+    // the course figure is what the day cost, the chain is what it bought, and
+    // the forecast only makes sense once both are on screen.
+    schedule(elapsed, () => useFlightStore.getState().setAnimationPhase('streak'))
+    elapsed += STREAK_MS
     schedule(elapsed, () => useFlightStore.getState().setAnimationPhase('projection'))
     elapsed += PROJECTION_MS
     schedule(elapsed, finish)

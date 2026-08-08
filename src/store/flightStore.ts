@@ -12,6 +12,8 @@ export type AnimationPhase =
   | 'events'
   | 'reacting'
   | 'result'
+  /** The chain beat: the one number people come back for. */
+  | 'streak'
   | 'projection'
 
 export type CameraMode = 'chase' | 'closeup' | 'wide'

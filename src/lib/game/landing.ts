@@ -1,4 +1,4 @@
-import { flightCycleProgress, isHabitDue, localDateKey } from '@/lib/journey/date'
+import { addDays, flightCycleProgress, isHabitDue, localDateKey } from '@/lib/journey/date'
 import type { DailyFlightRecord, Habit } from '@/lib/journey/types'
 
 export type LandingGrade = 'centerline' | 'safe' | 'hard' | 'alternate'
@@ -7,12 +7,6 @@ export interface CycleTruthScore {
   completionRate: number
   trackedDays: number
   checkedInDays: number
-}
-
-function addDays(dateKey: string, days: number): string {
-  const date = new Date(`${dateKey}T12:00:00`)
-  date.setDate(date.getDate() + days)
-  return localDateKey(date)
 }
 
 /**

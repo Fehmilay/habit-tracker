@@ -30,6 +30,8 @@ interface FlightSceneCanvasProps {
   interactive?: boolean
   /** 0..1 share of recently rated habits that were missed. */
   missRate?: number
+  /** Lets the settings sheet turn the smoke, sparks and fire off. */
+  showDamage?: boolean
 }
 
 /**
@@ -51,6 +53,7 @@ export default function FlightSceneCanvas({
   paused = false,
   interactive = true,
   missRate = 0,
+  showDamage = true,
 }: FlightSceneCanvasProps) {
   const quality = useQualitySettings()
   const prefersReducedMotion = useReducedMotion()
@@ -97,6 +100,7 @@ export default function FlightSceneCanvas({
         ambientMotion={ambientMotion}
         steeringActive={interactive}
         missRate={missRate}
+        damageEnabled={showDamage}
       />
       <ChaseCamera />
 

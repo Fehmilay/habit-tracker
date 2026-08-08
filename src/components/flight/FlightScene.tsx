@@ -44,12 +44,15 @@ interface FlightSceneProps {
   interactive?: boolean
   /** 0..1 share of recently rated habits that were missed. */
   missRate?: number
+  /** Lets the settings sheet turn the smoke, sparks and fire off. */
+  showDamage?: boolean
 }
 
 export function FlightScene({
   paused = false,
   interactive = true,
   missRate = 0,
+  showDamage = true,
 }: FlightSceneProps) {
   const supported = useSyncExternalStore(
     noopSubscribe,
@@ -61,7 +64,7 @@ export function FlightScene({
 
   return (
     <SceneErrorBoundary fallback={<SceneFallback2D reason="error" />}>
-      <FlightSceneCanvas paused={paused} interactive={interactive} missRate={missRate} />
+      <FlightSceneCanvas paused={paused} interactive={interactive} missRate={missRate} showDamage={showDamage} />
     </SceneErrorBoundary>
   )
 }
