@@ -289,3 +289,53 @@ describe('chain protection', () => {
     expect(state.progress.reserve).toBe(100)
   })
 })
+
+describe('reconcileCalendar watermark', () => {
+  /**
+   * The hole this closes: the sweep stops at `today - 2`, so if the watermark
+   * were "the day the sweep last ran" the grace day would be skipped while it
+   * was current and then sit below the floor forever. Someone opening the app
+   * daily and rating nothing would never be charged for a single day.
+   *
+   * The watermark is therefore the last day *accounted for*, and these tests
+   * walk it forward one day at a time the way real use does.
+   */
+  it('charges the grace day on the next day, not never', () => {
+    // As if the app had been opened yesterday: that run closed up to T-3.
+    setup({ lastReconciledDate: addDays(today, -3) })
+    useJourneyStore.getState().reconcileCalendar()
+
+    const dates = useJourneyStore.getState().records.map((record) => record.date)
+    expect(dates).toEqual([addDays(today, -2)])
+    expect(useJourneyStore.getState().lastReconciledDate).toBe(addDays(today, -2))
+  })
+
+  it('leaves a daily user nothing to catch up on, but never nothing to pay', () => {
+    setup({ lastReconciledDate: addDays(today, -3) })
+    const store = useJourneyStore.getState()
+
+    store.reconcileCalendar()
+    const afterFirst = useJourneyStore.getState().records.length
+    // Same day again: the watermark already covers everything closable.
+    store.reconcileCalendar()
+    expect(useJourneyStore.getState().records).toHaveLength(afterFirst)
+    expect(afterFirst).toBe(1)
+  })
+
+  it('does not charge the two days that are still inside the grace window', () => {
+    setup({ lastReconciledDate: addDays(today, -1) })
+    useJourneyStore.getState().reconcileCalendar()
+    expect(useJourneyStore.getState().records).toHaveLength(0)
+  })
+
+  it('starts a fresh profile with everything before today already accounted for', () => {
+    useJourneyStore.getState().resetEverything()
+    useJourneyStore.getState().completeOnboarding({
+      journey: {},
+      habits: [{ name: 'Gym', icon: 'strength', cue: 'x', days: [0, 1, 2, 3, 4, 5, 6], impact: 1 }],
+    })
+    expect(useJourneyStore.getState().lastReconciledDate).toBe(addDays(today, -1))
+    useJourneyStore.getState().reconcileCalendar()
+    expect(useJourneyStore.getState().records).toHaveLength(0)
+  })
+})

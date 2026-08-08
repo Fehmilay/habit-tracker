@@ -384,7 +384,9 @@ export const useJourneyStore = create<JourneyStoreState>()(
             records: [],
             drafts: {},
             draftsDate: null,
-            lastReconciledDate: localDateKey(),
+            // Everything up to yesterday is prehistory for a journey that
+            // starts today.
+            lastReconciledDate: addDays(localDateKey(), -1),
             pendingReturn: null,
             currentDeviationDegrees: 0,
             streakFrozenDates: [],
@@ -516,22 +518,27 @@ export const useJourneyStore = create<JourneyStoreState>()(
         // Drafts belong to the day they were made on, and they outlive it in
         // local storage.
         const staleDrafts = state.draftsDate !== null && state.draftsDate !== today
-        if (state.lastReconciledDate === today && !staleDrafts) return
-
-        const recorded = new Set(state.records.map((record) => record.date))
         // Yesterday is the grace day; the sweep stops the day before it.
         const lastClosable = addDays(today, -2)
-        // Never reaches back past the last sweep. Without that floor, upgrading
-        // an existing profile would retroactively close out months of days that
-        // cost nothing under the old rules and slam the course to its cap - a
-        // punishment for a change the user did not make.
+
+        // `lastReconciledDate` is the last day already ACCOUNTED FOR, not the
+        // day the sweep last ran. Storing "ran today" here was a silent hole:
+        // the sweep stops at today-2, so the grace day was skipped on the day
+        // it was current and then sat below the floor forever after. Someone
+        // who opened the app daily and rated nothing was therefore never
+        // charged for a single day - the whole loophole, reopened.
+        const watermark = state.lastReconciledDate
+        if (watermark !== null && watermark >= lastClosable && !staleDrafts) return
+
+        const recorded = new Set(state.records.map((record) => record.date))
         const afterLastRecord = state.records.at(-1)?.date
           ? addDays(state.records.at(-1)!.date, 1)
           : state.journey.startDate
-        const begin = [afterLastRecord, state.lastReconciledDate]
-          .filter((value): value is string => Boolean(value))
-          .sort()
-          .at(-1)!
+        // The floor stops an upgrade from retroactively closing out months of
+        // days that cost nothing under the old rules.
+        const begin = watermark && addDays(watermark, 1) > afterLastRecord
+          ? addDays(watermark, 1)
+          : afterLastRecord
 
         const filled: DailyFlightRecord[] = []
         let deviation = state.currentDeviationDegrees
@@ -590,7 +597,7 @@ export const useJourneyStore = create<JourneyStoreState>()(
 
         if (filled.length === 0) {
           set({
-            lastReconciledDate: today,
+            lastReconciledDate: lastClosable,
             ...(missionsChanged ? { recoveryMissions: prunedMissions } : {}),
             ...(staleDrafts ? { drafts: {}, draftsDate: null } : {}),
           })
@@ -612,7 +619,7 @@ export const useJourneyStore = create<JourneyStoreState>()(
         set({
           records,
           currentDeviationDegrees: deviation,
-          lastReconciledDate: today,
+          lastReconciledDate: lastClosable,
           recoveryMissions: prunedMissions,
           drafts: staleDrafts ? {} : state.drafts,
           draftsDate: staleDrafts ? null : state.draftsDate,
@@ -968,7 +975,7 @@ export const useJourneyStore = create<JourneyStoreState>()(
           draftsDate: null,
           drafts: {},
           // Absence only starts costing from the upgrade onward.
-          lastReconciledDate: localDateKey(),
+          lastReconciledDate: addDays(localDateKey(), -1),
           settings: { ...DEFAULT_SETTINGS, ...((saved.settings as object) ?? {}) },
           streakFrozenDates: saved.streakFrozenDates ?? [],
           unlockedAchievements: saved.unlockedAchievements ?? [],
